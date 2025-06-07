@@ -1,0 +1,30 @@
+{
+  "name": "black-box",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@firebase/auth": "^1.10.6",
+    "@firebase/firestore": "^4.7.16",
+    "@monaco-editor/react": "^4.7.0",
+    "firebase": "^11.8.1",
+    "framer-motion": "^12.16.0",
+    "next": "15.3.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-error-boundary": "^6.0.0",
+    "react-icons": "^5.5.0",
+    "react-resizable-panels": "^3.0.2",
+    "recharts": "^2.15.3"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^3.4.17"
+  }
+}
