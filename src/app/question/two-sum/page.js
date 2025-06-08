@@ -191,37 +191,26 @@ except Exception as e:
               </Link>
             </div>
             {/* Timer on the far right */}
-            <div className="ml-auto flex items-center space-x-6">
+            <div className="ml-auto flex items-center space-x-4">
+              {/* Settings and Logout buttons */}
+              <Link
+                href="/settings"
+                className="text-sm text-gray-300 hover:text-gray-200 px-3 py-1 rounded-md hover:bg-gray-700"
+              >
+                Settings
+              </Link>
+              <button
+                onClick={logout}
+                className="text-sm text-gray-300 hover:text-gray-200 px-3 py-1 rounded-md hover:bg-gray-700"
+              >
+                Logout
+              </button>
 
               {/* Profile */}
               <div className="relative" ref={profileRef}>
-                <button
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center space-x-2 text-gray-300 hover:text-gray-200"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-sm font-medium">
-                    {user?.email?.[0].toUpperCase()}
-                  </div>
-                </button>
-
-                {isProfileOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50">
-                    <div className="py-1">
-                      <Link
-                        href="/settings"
-                        className="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600"
-                      >
-                        Settings
-                      </Link>
-                      <button
-                        onClick={logout}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600"
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-sm font-medium">
+                  {user?.email?.[0].toUpperCase()}
+                </div>
               </div>
             </div>
           </div>
