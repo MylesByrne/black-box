@@ -97,14 +97,14 @@ export default function ProblemPage() {
         }
 
         // Fetch test cases
-        const testCasesData = await getDocument('Problems','two-sum','test-cases');
+        const testCasesData = problemData.testCases;
         if (testCasesData) {
           // Convert the test cases object into an array
           const testCasesArray = Object.entries(testCasesData).map(([id, data]) => ({
             id,
-            nums: data.nums,
+            nums: Object.values(data.nums),
             target: data.target,
-            expected: data.expected
+            expected: Object.values(data.expected)
           }));
           setTestCases(testCasesArray);
         }
