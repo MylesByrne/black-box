@@ -19,6 +19,9 @@ export default function ProblemPage() {
   const [isPanelVisible, setIsPanelVisible] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState(null);
+  const [isLocked, setIsLocked] = useState(true);
+  const [timer, setTimer] = useState(0); // seconds remaining
+  const timerRef = useRef(null);
   const profileRef = useRef(null);
   const { getDocument, addDocument } = useFirestore();
   const { user, logout } = useAuth();
@@ -43,6 +46,32 @@ export default function ProblemPage() {
     }
   };
 
+  // Set timer based on difficulty when problem loads
+  useEffect(() => {
+    if (problem && isLocked) {
+      let minutes = 35;
+      if (problem.difficulty === 'medium') minutes = 45;
+      if (problem.difficulty === 'hard') minutes = 55;
+      setTimer(minutes * 60);
+    }
+  }, [problem, isLocked]);
+
+  // Countdown effect
+  useEffect(() => {
+    if (!isLocked && timer > 0) {
+      timerRef.current = setInterval(() => {
+        setTimer((prev) => prev > 0 ? prev - 1 : 0);
+      }, 1000);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isLocked, timer]);
+
+  // Format timer as MM:SS
+  const formatTimer = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -109,6 +138,7 @@ export default function ProblemPage() {
   const handleRun = async () => {
     setIsRunning(true);
     setActiveTab('output');
+    setIsPanelVisible(true)
     setOutput(null);
     const code = userCode.trim();
     try {
@@ -160,36 +190,39 @@ except Exception as e:
                 Black Box
               </Link>
             </div>
+            {/* Timer on the far right */}
+            <div className="ml-auto flex items-center space-x-6">
 
-            {/* Right side - Profile */}
-            <div className="relative" ref={profileRef}>
-              <button
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center space-x-2 text-gray-300 hover:text-gray-200"
-              >
-                <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-sm font-medium">
-                  {user?.email?.[0].toUpperCase()}
-                </div>
-              </button>
-
-              {isProfileOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50">
-                  <div className="py-1">
-                    <Link
-                      href="/settings"
-                      className="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600"
-                    >
-                      Settings
-                    </Link>
-                    <button
-                      onClick={logout}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600"
-                    >
-                      Logout
-                    </button>
+              {/* Profile */}
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="flex items-center space-x-2 text-gray-300 hover:text-gray-200"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-sm font-medium">
+                    {user?.email?.[0].toUpperCase()}
                   </div>
-                </div>
-              )}
+                </button>
+
+                {isProfileOpen && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="py-1">
+                      <Link
+                        href="/settings"
+                        className="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600"
+                      >
+                        Settings
+                      </Link>
+                      <button
+                        onClick={logout}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -206,38 +239,49 @@ except Exception as e:
                 <div className="flex">
                 </div>
               </div>
-
-              {/* Scrollable content */}
-              <div className="flex-1 overflow-y-auto">
-                <div className="p-6">
-                  { (
-                    <>
-                      <h1 className="text-2xl font-bold text-gray-100 mb-4">
-                        {problem.title}
-                      </h1>
-                      <div className="flex items-center space-x-4 mb-4">
+                      <div className="flex-1 overflow-y-auto">
+                      <div className="p-6">
+                        { (
+                        <>
+                          <h1 className="text-2xl font-bold text-gray-100 mb-4 flex justify-between items-center">
+                          {problem.title}              
+                          <span className="text-gray-400 text-lg font-mono ml-auto">
+                            {formatTimer(timer)}
+                          </span>
+                          </h1>
+                          <div className="flex items-center space-x-4 mb-4">
+                          </div>
+                          <div className="prose max-w-none mb-8 text-gray-300">
+                          <p className="whitespace-pre-wrap">
+                            {problem.description}
+                          </p>
+                          </div>
+                        </>
+                        ) }
                       </div>
-                      <div className="prose max-w-none mb-8 text-gray-300">
-                        <p className="whitespace-pre-wrap">
-                          {problem.description}
-                        </p>
                       </div>
-                    </>
-                  ) }
-                </div>
-              </div>
-            </div>
-          </Panel>
-
-          <PanelResizeHandle className="w-2 bg-gray-700 hover:bg-gray-600 transition-colors duration-150">
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="w-0.5 h-8 bg-gray-600" />
-            </div>
-          </PanelResizeHandle>
-
-          {/* Code Editor Panel */}
+                    </div>
+                    </Panel>
+                    <PanelResizeHandle className="w-2 bg-gray-700 hover:bg-gray-600 transition-colors duration-150">
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="w-0.5 h-8 bg-gray-600" />
+                    </div>
+                    </PanelResizeHandle>
+      {/* Code Editor Panel */}
           <Panel defaultSize={60} minSize={40}>
-            <div className="h-full flex flex-col bg-gray-800">
+            <div className="h-full flex flex-col bg-gray-800 relative">
+              {/* Overlay */}
+              {isLocked && (
+                <div className="absolute inset-0 z-50 bg-black bg-opacity-70 flex flex-col items-center justify-center">
+                  <div className="text-2xl text-white mb-6 font-bold">Ready to start?</div>
+                  <button
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg text-lg font-semibold shadow-lg transition"
+                    onClick={() => setIsLocked(false)}
+                  >
+                    Start
+                  </button>
+                </div>
+              )}
               <PanelGroup direction="vertical">
                 {/* Code Editor Panel */}
                 <Panel defaultSize={isPanelVisible ? 70 : 100} minSize={40}>
@@ -248,9 +292,9 @@ except Exception as e:
                           height="100%"
                           defaultLanguage="python"
                           value={userCode}
-                          onChange={(value) => setUserCode(value)}
+                          onChange={isLocked ? undefined : (value) => setUserCode(value)}
                           theme="vs-dark"
-                          options={editorOptions}
+                          options={{ ...editorOptions, readOnly: isLocked }}
                           className="rounded-lg"
                           defaultValue={`class Solution:
     def twoSum(self, nums: List[int], target: int) -> List[int]:
@@ -275,22 +319,24 @@ except Exception as e:
                         {/* Tab Buttons */}
                         <div className="flex border-b border-gray-700">
                           <button
-                            onClick={() => setActiveTab('testcases')}
+                            onClick={() => !isLocked && setActiveTab('testcases')}
                             className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
                               activeTab === 'testcases'
                                 ? 'text-orange-400 border-b-2 border-orange-400'
                                 : 'text-gray-400 hover:text-orange-300'
-                            }`}
+                            } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={isLocked}
                           >
                             Test Cases
                           </button>
                           <button
-                            onClick={() => setActiveTab('output')}
+                            onClick={() => !isLocked && setActiveTab('output')}
                             className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
                               activeTab === 'output'
                                 ? 'text-orange-400 border-b-2 border-orange-400'
                                 : 'text-gray-400 hover:text-orange-300'
-                            }`}
+                            } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={isLocked}
                           >
                             Output
                           </button>
@@ -298,66 +344,71 @@ except Exception as e:
 
                         {/* Tab Content */}
                         <div className="flex-1 overflow-y-auto p-4">
-                          {activeTab === 'testcases' && (
-                            <div className="space-y-4">
-                              {testCases.slice(0,3).map((testCase) => (
-                                <div
-                                  key={testCase.id}
-                                  className="p-3 bg-gray-900 rounded-lg text-sm text-gray-300"
-                                >
-                                  <div className="mb-1">
-                                    <span className="text-gray-400">Input:</span> nums = [{testCase.nums.join(', ')}],
-                                    target = {testCase.target}
-                                  </div>
-                                  <div>
-                                    <span className="text-gray-400">Expected:</span> [{testCase.expected.join(', ')}]
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {activeTab === 'output' && (
-                            <div className="font-mono text-sm text-gray-300">
-                              {isRunning ? (
-                                <div className="text-gray-400">Running code...</div>
-                              ) : !output ? (
-                                <div className="text-gray-400">Run code to see output</div>
-                              ) : (
+                          {isLocked ? (
+                            <div className="text-gray-400 text-center mt-8">Unlock to view content</div>
+                          ) : (
+                            <>
+                              {activeTab === 'testcases' && (
                                 <div className="space-y-4">
-                                  {output.status.description && (
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-gray-400">Status:</span>
-                                      <span className={output.status.description === 'Accepted' ? 'text-green-400' : 'text-red-400'}>
-                                        {output.status.description}
-                                      </span>
+                                  {testCases.slice(0,3).map((testCase) => (
+                                    <div
+                                      key={testCase.id}
+                                      className="p-3 bg-gray-900 rounded-lg text-sm text-gray-300"
+                                    >
+                                      <div className="mb-1">
+                                        <span className="text-gray-400">Input:</span> nums = [{testCase.nums.join(', ')}],
+                                        target = {testCase.target}
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-400">Expected:</span> [{testCase.expected.join(', ')}]
+                                      </div>
                                     </div>
-                                  )}
-                                  {output.stdout && (
-                                    <div>
-                                      <div className="text-gray-400 mb-1">Output:</div>
-                                      <pre className="whitespace-pre-wrap bg-gray-900 p-3 rounded-lg">
-                                        {output.stdout}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  {output.stderr && (
-                                    <div>
-                                      <div className="text-red-400 mb-1">Error:</div>
-                                      <pre className="whitespace-pre-wrap bg-gray-900 p-3 rounded-lg text-red-400">
-                                        {output.stderr}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  {(output.time || output.memory) && (
-                                    <div className="text-gray-400 text-xs">
-                                      {output.time && <span>Time: {output.time}s </span>}
-                                      {output.memory && <span>Memory: {output.memory}KB</span>}
-                                    </div>
-                                  )}
-                                  
+                                  ))}
                                 </div>
                               )}
-                            </div>
+                              {activeTab === 'output' && (
+                                <div className="font-mono text-sm text-gray-300">
+                                  {isRunning ? (
+                                    <div className="text-gray-400">Running code...</div>
+                                  ) : !output ? (
+                                    <div className="text-gray-400">Run code to see output</div>
+                                  ) : (
+                                    <div className="space-y-4">
+                                      {output.status.description && (
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-gray-400">Status:</span>
+                                          <span className={output.status.description === 'Accepted' ? 'text-green-400' : 'text-red-400'}>
+                                            {output.status.description}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {output.stdout && (
+                                        <div>
+                                          <div className="text-gray-400 mb-1">Output:</div>
+                                          <pre className="whitespace-pre-wrap bg-gray-900 p-3 rounded-lg">
+                                            {output.stdout}
+                                          </pre>
+                                        </div>
+                                      )}
+                                      {output.stderr && (
+                                        <div>
+                                          <div className="text-red-400 mb-1">Error:</div>
+                                          <pre className="whitespace-pre-wrap bg-gray-900 p-3 rounded-lg text-red-400">
+                                            {output.stderr}
+                                          </pre>
+                                        </div>
+                                      )}
+                                      {(output.time || output.memory) && (
+                                        <div className="text-gray-400 text-xs">
+                                          {output.time && <span>Time: {output.time}s </span>}
+                                          {output.memory && <span>Memory: {output.memory}KB</span>}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -372,8 +423,9 @@ except Exception as e:
                   {/* Toggle Button */}
                   <div className="flex items-center">
                     <button
-                      onClick={() => setIsPanelVisible(!isPanelVisible)}
-                      className="p-2 text-gray-400 hover:text-orange-400 transition-colors duration-150 flex items-center gap-2"
+                      onClick={() => !isLocked && setIsPanelVisible(!isPanelVisible)}
+                      className={`p-2 text-gray-400 hover:text-orange-400 transition-colors duration-150 flex items-center gap-2 ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={isLocked}
                     >
                       {isPanelVisible ? (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -393,14 +445,15 @@ except Exception as e:
                     <button
                       className="bg-transparent border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white px-4 py-1.5 rounded transition-colors duration-150 font-semibold text-sm shadow-sm"
                       type="button"
-                      onClick={handleRun}
-                      disabled={isRunning}
+                      onClick={isLocked ? undefined : handleRun}
+                      disabled={isLocked || isRunning}
                     >
                       {isRunning ? 'Running...' : 'Run'}
                     </button>
                     <button
                       className="bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 px-4 py-1.5 rounded transition-colors duration-150 font-semibold text-sm shadow-sm"
                       type="button"
+                      disabled={isLocked}
                     >
                       Submit
                     </button>
