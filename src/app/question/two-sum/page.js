@@ -35,6 +35,10 @@ export default function ProblemPage() {
   const [userProblemData, setUserProblemData] = useState(null);  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [showFailureAnimation, setShowFailureAnimation] = useState(false);
   const [explanationAttempts, setExplanationAttempts] = useState(0);
+  const [showQuestionsModal, setShowQuestionsModal] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
 
   const editorOptions = {
     minimap: { enabled: false },
@@ -81,12 +85,12 @@ export default function ProblemPage() {
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   };
-
   // Function to render stars based on user progress
   const renderStars = () => {
     const stars = [];
     const isSolved = userProblemData?.solved || false;
     const hasPassedExplanation = userProblemData?.explanationGrade === 'PASS';
+    const hasPassedQuestions = userProblemData?.questionsGrade === 'PASS';
     
     // Star 1: Problem solved
     stars.push(
@@ -112,11 +116,11 @@ export default function ProblemPage() {
       </svg>
     );
 
-    // Star 3: Third achievement (to be implemented later)
+    // Star 3: Questions passed
     stars.push(
       <svg 
         key="star3" 
-        className="w-5 h-5 text-gray-400"
+        className={`w-5 h-5 ${hasPassedQuestions ? 'text-yellow-400' : 'text-gray-400'}`}
         fill="currentColor" 
         viewBox="0 0 20 20"
       >
@@ -153,6 +157,7 @@ export default function ProblemPage() {
               'two-sum': {
                 submissions: {},
                 explanationGrade: null,
+                questionsGrade: null,
               }
             }
           })        } else {
@@ -383,14 +388,17 @@ except Exception as e:
       if (submissionStatus === 'Accepted') {
         // Stop the timer when submission is accepted
         clearInterval(timerRef.current);
-        
-        // Only show explanation modal if user hasn't already passed the explanation
+          // Show explanation modal if accepted and user hasn't already passed explanation
         // Check both the current userProblemData and the updatedProblemData
         const currentGrade = userProblemData?.explanationGrade;
         const hasPassedExplanation = currentGrade === 'PASS';
+        const hasPassedQuestions = userProblemData?.questionsGrade === 'PASS';
         
         if (!hasPassedExplanation) {
           setShowExplanationModal(true);
+        } else if (!hasPassedQuestions) {
+          // If explanation is already passed but questions are not, go directly to questions
+          await loadQuestions();
         }
       }
 
@@ -536,10 +544,20 @@ except Exception as e:
       if (data.grade === 'PASS') {
         // Show success animation
         setShowSuccessAnimation(true);
-        
-        // Auto-close modal after animation
-        setTimeout(() => {
+          // Auto-close explanation modal and load questions after animation
+        setTimeout(async () => {
+          // Don't close modal yet, just hide the success animation
+          setShowSuccessAnimation(false);
+          // Close explanation modal and show questions loading
           closeExplanationModal();
+          
+          try {
+            // Load questions 
+            await loadQuestions();
+          } catch (error) {
+            console.error('Error loading questions:', error);
+            alert('Failed to load questions. Please try again.');
+          }
         }, 3000);
         
         try {
@@ -566,7 +584,7 @@ except Exception as e:
         } catch (updateError) {
           console.error('Error updating explanation grade:', updateError);
           alert('Explanation graded as PASS, but failed to save to database.');
-        }      } else {
+        }} else {
         // If explanation didn't pass, show failure animation
         setShowFailureAnimation(true);
         
@@ -609,13 +627,107 @@ except Exception as e:
           }
         }, 3000);
         
-        setIsReviewing(false);
-      }} catch (err) {
+        setIsReviewing(false);      }} catch (err) {
       console.error('Error:', err);
       alert(`Error: ${err.message}`);
       setIsReviewing(false);
       closeExplanationModal();
     }
+  };
+
+  // Function to load questions from the API
+  const loadQuestions = async () => {
+    setIsLoadingQuestions(true);
+    try {
+      const response = await fetch('/api/openai/generateQuestions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          code: userCode.trim(),
+          problemTitle: 'Two Sum'
+        })
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate questions');
+      }
+
+      setQuestions(data.questions);
+      setSelectedAnswers({});
+      setShowQuestionsModal(true);
+    } catch (error) {
+      console.error('Error loading questions:', error);
+      alert('Failed to load questions. Please try again.');
+    } finally {
+      setIsLoadingQuestions(false);
+    }
+  };
+
+  // Function to handle answer selection
+  const handleAnswerSelect = (questionIndex, answerIndex) => {
+    setSelectedAnswers(prev => ({
+      ...prev,
+      [questionIndex]: answerIndex
+    }));
+  };
+
+  // Function to submit questions
+  const submitQuestions = async () => {
+    // Check if all questions are answered
+    const allAnswered = questions.every((_, index) => selectedAnswers[index] !== undefined);
+    
+    if (!allAnswered) {
+      alert('Please answer all questions before submitting.');
+      return;
+    }
+
+    // Check if all answers are correct
+    const allCorrect = questions.every((question, index) => 
+      selectedAnswers[index] === question.correctAnswer
+    );
+
+    if (allCorrect) {
+      // Update questionsGrade to PASS
+      try {
+        const userDoc = await getDocument('Users', user.uid);
+        const currentProblemData = userDoc?.problemData?.['two-sum'] || {};
+        
+        const updatedProblemData = {
+          ...currentProblemData,
+          questionsGrade: 'PASS'
+        };
+
+        await updateDocument('Users', user.uid, {
+          problemData: {
+            ...userDoc.problemData,
+            'two-sum': updatedProblemData
+          }
+        });
+
+        // Update local state
+        setUserProblemData(updatedProblemData);
+        
+        alert('Congratulations! All answers correct! 🎉');
+        setShowQuestionsModal(false);
+        
+      } catch (error) {
+        console.error('Error updating questions grade:', error);
+        alert('Questions completed successfully, but failed to save to database.');
+      }
+    } else {
+      alert('Some answers are incorrect. Please review and try again.');
+    }
+  };
+
+  // Function to close questions modal
+  const closeQuestionsModal = () => {
+    setShowQuestionsModal(false);
+    setQuestions([]);
+    setSelectedAnswers({});
   };
 
 
@@ -662,9 +774,24 @@ except Exception as e:
       <div className="flex-1 pt-16">
         <PanelGroup direction="horizontal">
           {/* Problem Description Panel */}          <Panel defaultSize={40} minSize={30}>
-            <div className="h-full flex flex-col bg-gray-800 border-r border-gray-700 relative">              {/* Explanation Modal Overlay */}
+            <div className="h-full flex flex-col bg-gray-800 border-r border-gray-700 relative">
+              
+              {/* Questions Loading Overlay */}
+              {isLoadingQuestions && (
+                <div className="absolute inset-0 z-40 bg-gray-800 bg-opacity-90 flex items-center justify-center">
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="text-gray-100 text-center">
+                      <p className="text-xl font-medium">Loading Questions...</p>
+                      <p className="text-sm text-gray-400 mt-1">Generating personalized questions for your solution</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Explanation Modal Overlay */}
               {showExplanationModal && (
-                <div className="absolute inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-6">                  {/* Success Animation */}
+                <div className="absolute inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-6 modal-fade-in">{/* Success Animation */}
                   {showSuccessAnimation && (
                     <div className="absolute inset-0 pointer-events-none">
                       {/* Confetti particles */}
@@ -884,9 +1011,82 @@ except Exception as e:
                       </div>
                     )}
                   </div>
+                </div>              )}
+                {/* Questions Modal Overlay */}
+              {showQuestionsModal && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center p-6 modal-fade-in">
+                  <div className="max-w-4xl w-full bg-gray-900 rounded-lg p-8 max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-700">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-bold text-gray-100">Multiple Choice Questions</h2>
+                      <button
+                        onClick={closeQuestionsModal}
+                        className="text-gray-400 hover:text-gray-200 text-xl"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    
+                    {isLoadingQuestions ? (
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="text-gray-300 text-center">
+                          <p className="text-lg font-medium">Generating questions...</p>
+                          <p className="text-sm text-gray-400 mt-1">This may take a moment</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-gray-300 text-lg mb-6">
+                          Answer the following questions about your solution:
+                        </p>
+                        
+                        <div className="space-y-6">
+                          {questions.map((question, questionIndex) => (
+                            <div key={questionIndex} className="bg-gray-800 rounded-lg p-6">
+                              <h3 className="text-lg font-semibold text-gray-100 mb-4">
+                                {questionIndex + 1}. {question.question}
+                              </h3>
+                              
+                              <div className="space-y-3">
+                                {question.options.map((option, optionIndex) => (
+                                  <label
+                                    key={optionIndex}
+                                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                                      selectedAnswers[questionIndex] === optionIndex
+                                        ? 'bg-orange-900 border border-orange-500'
+                                        : 'bg-gray-700 hover:bg-gray-600'
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={`question-${questionIndex}`}
+                                      value={optionIndex}
+                                      checked={selectedAnswers[questionIndex] === optionIndex}
+                                      onChange={() => handleAnswerSelect(questionIndex, optionIndex)}
+                                      className="text-orange-500 focus:ring-orange-500"
+                                    />
+                                    <span className="text-gray-200">{option}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="flex justify-center mt-8">
+                          <button
+                            onClick={submitQuestions}
+                            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 px-8 py-3 rounded-lg text-lg font-semibold shadow-lg transition"
+                          >
+                            Submit Answers
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-              
+
               {/* Tabs - Fixed at top */}<div className="sticky top-0 bg-gray-800 border-b border-gray-700 z-10">
                 <div className="flex">
                   <button
@@ -1023,12 +1223,12 @@ except Exception as e:
                           height="100%"
                           defaultLanguage="python"
                           value={userCode}                          onChange={
-                            isLocked || showExplanationModal
+                            isLocked || showExplanationModal || showQuestionsModal
                               ? undefined
                               : (value) => setUserCode(value)
                           }
                           theme="vs-dark"
-                          options={{ ...editorOptions, readOnly: isLocked || showExplanationModal }}
+                          options={{ ...editorOptions, readOnly: isLocked || showExplanationModal || showQuestionsModal }}
                           className="rounded-lg"
                           defaultValue={`class Solution:
     def twoSum(self, nums: List[int], target: int) -> List[int]:
