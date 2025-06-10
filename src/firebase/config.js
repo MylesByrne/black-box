@@ -11,11 +11,6 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-console.log('Initializing Firebase with config:', {
-  ...firebaseConfig,
-  apiKey: '***' // Hide API key in logs
-});
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);

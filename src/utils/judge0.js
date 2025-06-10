@@ -15,7 +15,7 @@ export const submitCode = async (sourceCode) => {
       body: JSON.stringify({
         language_id: PYTHON_LANGUAGE_ID,
         source_code: sourceCode,
-        expected_output: "All test cases passed!" 
+        expected_output: "SUBMISSION_RESULT: Accepted" 
       })
     });
 

@@ -15,15 +15,23 @@ export default function ProblemPage() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [userCode, setUserCode] = useState('');
   const [testCases, setTestCases] = useState([]);
-  const [activeTab, setActiveTab] = useState('testcases'); // Options: 'testcases', 'console'
-  const [isPanelVisible, setIsPanelVisible] = useState(true);
-  const [isRunning, setIsRunning] = useState(false);
+  const [activeTab, setActiveTab] = useState('testcases'); 
+  const [isPanelVisible, setIsPanelVisible] = useState(true);  const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState(null);
   const [isLocked, setIsLocked] = useState(true);
-  const [timer, setTimer] = useState(0); // seconds remaining
+  const [timer, setTimer] = useState(0); 
+  const [leftActiveTab, setLeftActiveTab] = useState('description');
+  const [submissions, setSubmissions] = useState([]);
+  const [showExplanationModal, setShowExplanationModal] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const recordingTimerRef = useRef(null);
   const timerRef = useRef(null);
   const profileRef = useRef(null);
-  const { getDocument, addDocument } = useFirestore();
+  const { getDocument, addDocument, setDocument, updateDocument } = useFirestore();
   const { user, logout } = useAuth();
 
   const editorOptions = {
@@ -95,6 +103,32 @@ export default function ProblemPage() {
           setError('Problem not found in database');
           return;
         }
+        const userDoc = await getDocument('Users', `${user.uid}`);
+        console.log(userDoc);
+        if (!userDoc.problemData['two-sum']) {
+          // If user hasn't attempted this problem, create a new document
+          await updateDocument(`Users`, `${user.uid}`, {
+            problemData: {
+              'two-sum': {
+                submissions: {}
+              }
+            }
+          })
+        } else {
+          // Load existing submissions from Firestore
+          const problemData = userDoc.problemData['two-sum'];
+          if (problemData.submissions) {
+            // Convert submissions object to array and sort by timestamp (newest first)
+            const submissionsArray = Object.entries(problemData.submissions)
+              .map(([timestamp, submission]) => ({
+                ...submission,
+                timestamp: submission.timestamp || new Date(parseInt(timestamp)).toISOString()
+              }))
+              .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            setSubmissions(submissionsArray);
+          }
+        }
 
         // Fetch test cases
         const testCasesData = problemData.testCases;
@@ -116,7 +150,7 @@ export default function ProblemPage() {
     };
 
     fetchProblemAndTestCases();
-  }, [getDocument]);
+  }, [getDocument, user?.uid]);
   
   
   if (loading) {
@@ -134,7 +168,6 @@ export default function ProblemPage() {
       </div>
     );
   }
-{/* remove repetitive work have it so that the test cases/user code are only submitted once instead of being submitted for every test case */}
   const handleRun = async () => {
     setIsRunning(true);
     setActiveTab('output');
@@ -158,7 +191,7 @@ def check_solution():
       else:
         print(f"Test case {i+1}: Failed | Input: nums={testCase['nums']}, target={testCase['target']} | Expected: {testCase['expected']}, Got: {result}")
         return
-  print("All test cases passed!")
+  print("SUBMISSION_RESULT: Accepted")
         
 
 try:
@@ -177,6 +210,230 @@ except Exception as e:
     } finally {
       setIsRunning(false);
     }
+  };
+
+  const handleSubmit = async () => {
+    if (!userCode.trim()) return;
+    setIsRunning(true);
+    setActiveTab('output');
+    setIsPanelVisible(true);
+    setOutput(null);
+
+    const code = userCode.trim();
+    try {
+      const testCall = `
+from typing import List
+
+${code}
+solution = Solution()
+def check_solution():
+  testCases = ${JSON.stringify(testCases)}
+  passed = 0
+  total = len(testCases)
+  
+  for i in range(len(testCases)):
+      testCase = testCases[i]
+      result = solution.twoSum(testCase['nums'], testCase['target'])
+      if result == testCase['expected']:
+        passed += 1
+      else:
+        print(f"Test case {i+1}: Failed | Input: nums={testCase['nums']}, target={testCase['target']} | Expected: {testCase['expected']}, Got: {result}")
+  
+  if passed == total:
+    return True
+  else:
+    print(f"{passed}/{total} test cases passed")
+    return False
+        
+
+try:
+    result = check_solution();
+    print("SUBMISSION_RESULT:", "Accepted" if result else "Wrong Answer")
+except Exception as e:
+    print("Error:", e)
+    print("SUBMISSION_RESULT:", "Runtime Error")
+      `.trim();
+      
+      const response = await submitCode(testCall);
+      setOutput(response);
+
+      // Parse submission result
+      let submissionStatus = 'Runtime Error';
+      let errorMessage = null;
+
+      if (response.stdout) {
+        if (response.stdout.includes('SUBMISSION_RESULT: Accepted')) {
+          submissionStatus = 'Accepted';
+        } else if (response.stdout.includes('SUBMISSION_RESULT: Wrong Answer')) {
+          submissionStatus = 'Wrong Answer';
+        }
+      }
+
+      if (response.stderr) {
+        errorMessage = response.stderr;
+      }
+
+      // Add submission to submissions list
+      const newSubmission = {
+        status: submissionStatus,
+        timestamp: new Date().toISOString(),
+        runtime: response.time ? `${response.time}s` : null,
+        memory: response.memory ? `${response.memory}KB` : null,
+        error: errorMessage,
+        code: code
+      };
+
+      setSubmissions(prev => [newSubmission, ...prev]);
+
+      // Save submission to Firestore
+      if (user?.uid) {
+        try {
+          // Get current user document
+          const userDoc = await getDocument('Users', user.uid);
+          
+          // Check if problemData exists for this problem
+          const currentProblemData = userDoc?.problemData?.['two-sum'] || {};
+          
+          // Update the problemData for this specific problem
+          const updatedProblemData = {
+            ...currentProblemData,
+            totalAttempts: (currentProblemData.totalAttempts || 0) + 1,
+            lastAttempt: new Date().toISOString(),
+            solved: submissionStatus === 'Accepted' ? true : (currentProblemData.solved || false),
+            submissions: {
+              ...currentProblemData.submissions,
+              [Date.now()]: newSubmission // Use timestamp as key
+            }
+          };
+          
+          // If first attempt, add firstAttempt timestamp
+          if (!currentProblemData.firstAttempt) {
+            updatedProblemData.firstAttempt = new Date().toISOString();
+          }
+          
+          // Update best submission if this one is better
+          if (submissionStatus === 'Accepted' && 
+              (!currentProblemData.bestSubmission || 
+               !currentProblemData.bestSubmission.runtime || 
+               (response.time && parseFloat(response.time) < parseFloat(currentProblemData.bestSubmission.runtime.replace('s', ''))))) {
+            updatedProblemData.bestSubmission = newSubmission;
+          }
+          
+          // Update the user document with the new problem data
+          await updateDocument('Users', user.uid, {
+            problemData: {
+              ...userDoc.problemData,
+              'two-sum': updatedProblemData
+            }
+          });
+          
+          console.log('Submission saved to Firestore');
+          
+        } catch (firestoreError) {
+          console.error('Error saving submission to Firestore:', firestoreError);
+        }
+      }
+      
+      // Show explanation modal if accepted
+      if (submissionStatus === 'Accepted') {
+        setLeftActiveTab('submissions');
+        setShowExplanationModal(true);
+      }
+
+    } catch (error) {
+      setOutput({
+        stderr: error.message,
+        status: 'Error'
+      });
+      const failedSubmission = {
+        status: 'Runtime Error',
+        timestamp: new Date().toISOString(),
+        runtime: null,
+        memory: null,
+        error: error.message,
+        code: code
+      };
+      setSubmissions(prev => [failedSubmission, ...prev]);
+      // Save failed submission to Firestore
+      if (user?.uid) {
+        try {
+          const userDoc = await getDocument('Users', user.uid);
+          const currentProblemData = userDoc?.problemData?.['two-sum'] || {};
+          const updatedProblemData = {
+            ...currentProblemData,
+            totalAttempts: (currentProblemData.totalAttempts || 0) + 1,
+            lastAttempt: new Date().toISOString(),
+            submissions: {
+              ...currentProblemData.submissions,
+              [Date.now()]: failedSubmission
+            }
+          };
+          if (!currentProblemData.firstAttempt) {
+            updatedProblemData.firstAttempt = new Date().toISOString();
+          }
+          await updateDocument('Users', user.uid, {
+            problemData: {
+              ...userDoc.problemData,
+              'two-sum': updatedProblemData
+            }
+          });
+        } catch (firestoreError) {
+          console.error('Error saving failed submission to Firestore:', firestoreError);
+        }
+      }
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  // Audio recording handlers
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new window.MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      const audioChunks = [];
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        // Create the URL once when recording stops
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      alert('Microphone access denied or unavailable.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(recordingTimerRef.current);
+    }
+  };
+
+  const closeExplanationModal = () => {
+    // Clean up the object URL to prevent memory leaks
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    setShowExplanationModal(false);
+    setAudioBlob(null);
+    setRecordingTime(0);
+    setIsRecording(false);
+    clearInterval(recordingTimerRef.current);
   };
 
   return (
@@ -220,46 +477,188 @@ except Exception as e:
       {/* Main Content */}
       <div className="flex-1 pt-16">
         <PanelGroup direction="horizontal">
-          {/* Problem Description Panel */}
-          <Panel defaultSize={40} minSize={30}>
-            <div className="h-full flex flex-col bg-gray-800 border-r border-gray-700">
+          {/* Problem Description Panel */}          <Panel defaultSize={40} minSize={30}>
+            <div className="h-full flex flex-col bg-gray-800 border-r border-gray-700 relative">
               {/* Tabs - Fixed at top */}
               <div className="sticky top-0 bg-gray-800 border-b border-gray-700 z-10">
                 <div className="flex">
+                  <button
+                    onClick={() => setLeftActiveTab('description')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
+                      leftActiveTab === 'description'
+                        ? 'text-orange-400 border-b-2 border-orange-400'
+                        : 'text-gray-400 hover:text-orange-300'
+                    }`}
+                  >
+                    Description
+                  </button>
+                  <button
+                    onClick={() => setLeftActiveTab('submissions')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
+                      leftActiveTab === 'submissions'
+                        ? 'text-orange-400 border-b-2 border-orange-400'
+                        : 'text-gray-400 hover:text-orange-300'
+                    }`}
+                  >
+                    Submissions
+                  </button>
+                </div>
+              </div>              <div className="flex-1 overflow-y-auto">
+                <div className="p-6">
+                  {leftActiveTab === 'description' && (
+                    <>
+                      <h1 className="text-2xl font-bold text-gray-100 mb-4 flex justify-between items-center">
+                        {problem.title}              
+                        <span className="text-gray-400 text-lg font-mono ml-auto">
+                          {formatTimer(timer)}
+                        </span>
+                      </h1>
+                      <div className="flex items-center space-x-4 mb-4">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          problem.difficulty === 'easy' ? 'bg-green-900 text-green-400' :
+                          problem.difficulty === 'medium' ? 'bg-yellow-900 text-yellow-400' :
+                          'bg-red-900 text-red-400'
+                        }`}>
+                          {problem.difficulty?.charAt(0).toUpperCase() + problem.difficulty?.slice(1)}
+                        </span>
+                      </div>
+                      <div className="prose max-w-none mb-8 text-gray-300">
+                        <p className="whitespace-pre-wrap">
+                          {problem.description}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {leftActiveTab === 'submissions' && (
+                    <>
+                      <h1 className="text-2xl font-bold text-gray-100 mb-4">Submissions</h1>
+                      {submissions.length === 0 ? (
+                        <div className="text-gray-400 text-center mt-8">
+                          <div className="mb-4">
+                            <svg className="w-16 h-16 mx-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <p>No submissions yet</p>
+                          <p className="text-sm text-gray-500 mt-2">Submit your solution to see it here</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {submissions.map((submission, index) => (
+                            <div
+                              key={index}
+                              className="p-4 bg-gray-900 rounded-lg border border-gray-700"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                  submission.status === 'Accepted' ? 'bg-green-900 text-green-400' :
+                                  submission.status === 'Wrong Answer' ? 'bg-red-900 text-red-400' :
+                                  'bg-yellow-900 text-yellow-400'
+                                }`}>
+                                  {submission.status}
+                                </span>
+                                <span className="text-gray-400 text-sm">
+                                  {new Date(submission.timestamp).toLocaleString()
+                                  }
+                                </span>
+                              </div>
+                              <div className="text-gray-300 text-sm">
+                                <div className="mb-1">
+                                  <span className="text-gray-400">Runtime:</span> {submission.runtime || 'N/A'}
+                                </div>
+                                <div className="mb-2">
+                                  <span className="text-gray-400">Memory:</span> {submission.memory || 'N/A'}
+                                </div>
+                                {submission.status !== 'Accepted' && submission.error && (
+                                  <div className="mt-2 p-2 bg-red-900/20 rounded text-red-400 text-xs">
+                                    {submission.error}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
-                      <div className="flex-1 overflow-y-auto">
-                      <div className="p-6">
-                        { (
-                        <>
-                          <h1 className="text-2xl font-bold text-gray-100 mb-4 flex justify-between items-center">
-                          {problem.title}              
-                          <span className="text-gray-400 text-lg font-mono ml-auto">
-                            {formatTimer(timer)}
-                          </span>
-                          </h1>
-                          <div className="flex items-center space-x-4 mb-4">
-                          </div>
-                          <div className="prose max-w-none mb-8 text-gray-300">
-                          <p className="whitespace-pre-wrap">
-                            {problem.description}
-                          </p>
-                          </div>
-                        </>
-                        ) }
-                      </div>
-                      </div>
+
+              {/* Explanation Modal - positioned over this panel */}
+              {showExplanationModal && (
+                <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+                  <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
+                    <h3 className="text-xl font-bold text-gray-100 mb-4">Give a brief explanation of your solution</h3>
+                    <div className="flex flex-col items-center space-y-4">
+                      {!audioBlob ? (
+                        <button
+                          onClick={isRecording ? stopRecording : startRecording}
+                          className={`p-4 rounded-full transition-colors duration-200 ${
+                            isRecording
+                              ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                              : 'bg-orange-500 hover:bg-orange-600'
+                          }`}
+                        >
+                          {isRecording ? (
+                            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <rect x="6" y="6" width="8" height="8" rx="1" />
+                            </svg>
+                          ) : (
+                            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="w-full flex flex-col items-center">
+                          <audio controls src={audioUrl} className="w-full mb-2" />
+                          <button
+                            onClick={() => {
+                              if (audioUrl) {
+                                URL.revokeObjectURL(audioUrl);
+                                setAudioUrl(null);
+                              }
+                              setAudioBlob(null);
+                            }}
+                            className="px-4 py-2 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
+                          >
+                            Re-record
+                          </button>
+                        </div>
+                      )}
+                      {isRecording && (
+                        <div className="text-red-400 font-mono text-lg">
+                          Recording... {recordingTime}s
+                        </div>
+                      )}
                     </div>
-                    </Panel>
-                    <PanelResizeHandle className="w-2 bg-gray-700 hover:bg-gray-600 transition-colors duration-150">
-                    <div className="w-full h-full flex items-center justify-center">
-                      <div className="w-0.5 h-8 bg-gray-600" />
+                    <div className="flex justify-end mt-6">
+                      <button
+                        onClick={closeExplanationModal}
+                        className="px-4 py-2 text-gray-400 hover:text-gray-300 transition-colors"
+                      >
+                        Done
+                      </button>
                     </div>
-                    </PanelResizeHandle>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Panel>
+
+          <PanelResizeHandle className="w-2 bg-gray-700 hover:bg-gray-600 transition-colors duration-150">
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-0.5 h-8 bg-gray-600" />
+            </div>
+          </PanelResizeHandle>
       {/* Code Editor Panel */}
           <Panel defaultSize={60} minSize={40}>
             <div className="h-full flex flex-col bg-gray-800 relative">
-              {/* Overlay */}
+              {/* Lock overlay for modal */}
+              {showExplanationModal}
+              
+              {/* Existing lock overlay */}
               {isLocked && (
                 <div className="absolute inset-0 z-50 bg-black bg-opacity-70 flex flex-col items-center justify-center">
                   <div className="text-2xl text-white mb-6 font-bold">Ready to start?</div>
@@ -271,6 +670,7 @@ except Exception as e:
                   </button>
                 </div>
               )}
+              
               <PanelGroup direction="vertical">
                 {/* Code Editor Panel */}
                 <Panel defaultSize={isPanelVisible ? 70 : 100} minSize={40}>
@@ -281,9 +681,13 @@ except Exception as e:
                           height="100%"
                           defaultLanguage="python"
                           value={userCode}
-                          onChange={isLocked ? undefined : (value) => setUserCode(value)}
+                          onChange={
+                            isLocked || showExplanationModal
+                              ? undefined
+                              : (value) => setUserCode(value)
+                          }
                           theme="vs-dark"
-                          options={{ ...editorOptions, readOnly: isLocked }}
+                          options={{ ...editorOptions, readOnly: isLocked || showExplanationModal }}
                           className="rounded-lg"
                           defaultValue={`class Solution:
     def twoSum(self, nums: List[int], target: int) -> List[int]:
@@ -443,6 +847,7 @@ except Exception as e:
                       className="bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 px-4 py-1.5 rounded transition-colors duration-150 font-semibold text-sm shadow-sm"
                       type="button"
                       disabled={isLocked}
+                      onClick={handleSubmit}
                     >
                       Submit
                     </button>
