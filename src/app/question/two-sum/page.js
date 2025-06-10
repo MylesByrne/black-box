@@ -30,10 +30,11 @@ export default function ProblemPage() {
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingTimerRef = useRef(null);
   const timerRef = useRef(null);
-  const profileRef = useRef(null);  const { getDocument, addDocument, setDocument, updateDocument } = useFirestore();  const { user, logout } = useAuth();
-  const [explanation, setExplanation] = useState('');
+  const profileRef = useRef(null);  const { getDocument, addDocument, setDocument, updateDocument } = useFirestore();  const { user, logout } = useAuth();  const [explanation, setExplanation] = useState('');
   const [isReviewing, setIsReviewing] = useState(false);
-  const [userProblemData, setUserProblemData] = useState(null);
+  const [userProblemData, setUserProblemData] = useState(null);  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [showFailureAnimation, setShowFailureAnimation] = useState(false);
+  const [explanationAttempts, setExplanationAttempts] = useState(0);
 
   const editorOptions = {
     minimap: { enabled: false },
@@ -158,6 +159,10 @@ export default function ProblemPage() {
           // Load existing submissions from Firestore
           const problemData = userDoc.problemData['two-sum'];
           setUserProblemData(problemData); // Set the user problem data
+          
+          // Load explanation attempts count
+          setExplanationAttempts(problemData.explanationAttempts || 0);
+          
           if (problemData.submissions) {
             // Convert submissions object to array and sort by timestamp (newest first)
             const submissionsArray = Object.entries(problemData.submissions)
@@ -373,15 +378,20 @@ except Exception as e:
           console.log('Submission saved to Firestore');
           
         } catch (firestoreError) {
-          console.error('Error saving submission to Firestore:', firestoreError);
-        }
-      }
-        // Show explanation modal if accepted
+          console.error('Error saving submission to Firestore:', firestoreError);        }
+      }        // Show explanation modal if accepted and user hasn't already passed explanation
       if (submissionStatus === 'Accepted') {
         // Stop the timer when submission is accepted
         clearInterval(timerRef.current);
-        setLeftActiveTab('submissions');
-        setShowExplanationModal(true);
+        
+        // Only show explanation modal if user hasn't already passed the explanation
+        // Check both the current userProblemData and the updatedProblemData
+        const currentGrade = userProblemData?.explanationGrade;
+        const hasPassedExplanation = currentGrade === 'PASS';
+        
+        if (!hasPassedExplanation) {
+          setShowExplanationModal(true);
+        }
       }
 
     } catch (error) {
@@ -479,8 +489,7 @@ except Exception as e:
       setIsRecording(false);
       clearInterval(recordingTimerRef.current);
     }
-  };
-  const closeExplanationModal = () => {
+  };  const closeExplanationModal = () => {
     // Clean up the object URL to prevent memory leaks
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
@@ -490,11 +499,17 @@ except Exception as e:
     setAudioBlob(null);
     setRecordingTime(0);
     setIsRecording(false);
-    setIsReviewing(false);
+    setIsReviewing(false);    setShowSuccessAnimation(false);
+    setShowFailureAnimation(false);
+    setExplanationAttempts(0);
     clearInterval(recordingTimerRef.current);
-  };
-  const submitExplanation = async (audio) => {
+  };  const submitExplanation = async (audio) => {
     setIsReviewing(true);
+    
+    // Increment attempt count
+    const newAttemptCount = explanationAttempts + 1;
+    setExplanationAttempts(newAttemptCount);
+    
     try {
       // First transcribe the audio
       const transcribedText = await transcribeAudio(audio);
@@ -517,19 +532,25 @@ except Exception as e:
 
       if (!res.ok) {
         throw new Error(data.error || 'API call failed');
-      }
-
-      // Update only the explanationGrade field
+      }      // Update only the explanationGrade field
       if (data.grade === 'PASS') {
+        // Show success animation
+        setShowSuccessAnimation(true);
+        
+        // Auto-close modal after animation
+        setTimeout(() => {
+          closeExplanationModal();
+        }, 3000);
+        
         try {
           // Get current user document
           const userDoc = await getDocument('Users', user.uid);
           const currentProblemData = userDoc?.problemData?.['two-sum'] || {};
-          
-          // Update only the explanationGrade field, preserving all other data
+            // Update only the explanationGrade field, preserving all other data
           const updatedProblemData = {
             ...currentProblemData,
-            explanationGrade: 'PASS'
+            explanationGrade: 'PASS',
+            explanationAttempts: newAttemptCount
           };
             await updateDocument('Users', user.uid, {
             problemData: {
@@ -545,12 +566,53 @@ except Exception as e:
         } catch (updateError) {
           console.error('Error updating explanation grade:', updateError);
           alert('Explanation graded as PASS, but failed to save to database.');
+        }      } else {
+        // If explanation didn't pass, show failure animation
+        setShowFailureAnimation(true);
+        
+        // Save attempt count to Firestore
+        try {
+          const userDoc = await getDocument('Users', user.uid);
+          const currentProblemData = userDoc?.problemData?.['two-sum'] || {};
+          
+          const updatedProblemData = {
+            ...currentProblemData,
+            explanationAttempts: newAttemptCount
+          };
+          
+          await updateDocument('Users', user.uid, {
+            problemData: {
+              ...userDoc.problemData,
+              'two-sum': updatedProblemData
+            }
+          });
+          
+          // Update local state
+          setUserProblemData(updatedProblemData);
+        } catch (updateError) {
+          console.error('Error updating explanation attempts:', updateError);
         }
-      }
-    } catch (err) {
+        
+        // Auto-close modal after animation (or reset for retry if under 3 attempts)
+        setTimeout(() => {
+          if (newAttemptCount >= 3) {
+            closeExplanationModal();
+          } else {
+            // Reset for another attempt
+            setShowFailureAnimation(false);
+            setIsReviewing(false);
+            setAudioBlob(null);
+            if (audioUrl) {
+              URL.revokeObjectURL(audioUrl);
+              setAudioUrl(null);
+            }
+          }
+        }, 3000);
+        
+        setIsReviewing(false);
+      }} catch (err) {
       console.error('Error:', err);
       alert(`Error: ${err.message}`);
-    } finally {
       setIsReviewing(false);
       closeExplanationModal();
     }
@@ -600,9 +662,232 @@ except Exception as e:
       <div className="flex-1 pt-16">
         <PanelGroup direction="horizontal">
           {/* Problem Description Panel */}          <Panel defaultSize={40} minSize={30}>
-            <div className="h-full flex flex-col bg-gray-800 border-r border-gray-700 relative">
-              {/* Tabs - Fixed at top */}
-              <div className="sticky top-0 bg-gray-800 border-b border-gray-700 z-10">
+            <div className="h-full flex flex-col bg-gray-800 border-r border-gray-700 relative">              {/* Explanation Modal Overlay */}
+              {showExplanationModal && (
+                <div className="absolute inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-6">                  {/* Success Animation */}
+                  {showSuccessAnimation && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      {/* Confetti particles */}
+                      {[...Array(30)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="absolute"
+                          style={{
+                            left: `${Math.random() * 100}%`,
+                            top: `${Math.random() * 100}%`,
+                            animation: `confetti ${1 + Math.random() * 2}s ease-out ${Math.random() * 0.5}s forwards`
+                          }}
+                        >
+                          <div 
+                            className="w-2 h-2 rounded-sm opacity-90"
+                            style={{
+                              backgroundColor: ['#fbbf24', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#f97316'][Math.floor(Math.random() * 6)],
+                              transform: `rotate(${Math.random() * 360}deg)`
+                            }}
+                          />
+                        </div>
+                      ))}
+                      
+                      {/* Floating stars */}
+                      {[...Array(10)].map((_, i) => (
+                        <div
+                          key={`star-${i}`}
+                          className="absolute text-yellow-400"
+                          style={{
+                            left: `${Math.random() * 100}%`,
+                            top: `${Math.random() * 100}%`,
+                            animation: `float ${2 + Math.random()}s ease-in-out ${Math.random() * 1}s infinite alternate`
+                          }}
+                        >
+                          ⭐
+                        </div>
+                      ))}
+                      
+                      {/* Success checkmark */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-green-500 rounded-full p-6 shadow-2xl" style={{animation: 'popup 0.6s ease-out'}}>
+                          <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Failure Animation */}
+                  {showFailureAnimation && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      {/* Falling X marks */}
+                      {[...Array(15)].map((_, i) => (
+                        <div
+                          key={`x-${i}`}
+                          className="absolute text-red-500 text-2xl font-bold"
+                          style={{
+                            left: `${Math.random() * 100}%`,
+                            top: `${Math.random() * 100}%`,
+                            animation: `fallDown ${1.5 + Math.random()}s ease-in ${Math.random() * 0.5}s forwards`
+                          }}
+                        >
+                          ✗
+                        </div>
+                      ))}
+                      
+                      {/* Shaking sad faces */}
+                      {[...Array(8)].map((_, i) => (
+                        <div
+                          key={`sad-${i}`}
+                          className="absolute text-gray-400 text-lg"
+                          style={{
+                            left: `${Math.random() * 100}%`,
+                            top: `${Math.random() * 100}%`,
+                            animation: `shake ${0.5 + Math.random() * 0.5}s ease-in-out ${Math.random() * 1}s infinite`
+                          }}
+                        >
+                          😔
+                        </div>
+                      ))}
+                      
+                      {/* Failure X mark */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-red-500 rounded-full p-6 shadow-2xl" style={{animation: 'shake 0.8s ease-out'}}>
+                          <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                    <div className="max-w-lg w-full">                    {showSuccessAnimation ? (
+                      <div className="text-center">
+                        <h3 className="text-2xl font-bold text-green-400 mb-4 animate-pulse">
+                          Excellent Explanation! 🎉
+                        </h3>
+                        <p className="text-gray-300 text-lg">
+                          Your explanation has been accepted
+                        </p>
+                      </div>
+                    ) : showFailureAnimation ? (
+                      <div className="text-center">
+                        <h3 className="text-2xl font-bold text-red-400 mb-4 animate-pulse">
+                          {explanationAttempts >= 3 ? 'Max Attempts Reached' : 'Try Again! 💪'}
+                        </h3>
+                        <p className="text-gray-300 text-lg">
+                          {explanationAttempts >= 3 
+                            ? 'You have used all 3 explanation attempts' 
+                            : `Your explanation needs more detail (${explanationAttempts}/3 attempts)`
+                          }
+                        </p>
+                      </div>
+                    ) : explanationAttempts >= 3 ? (
+                      <div className="text-center">
+                        <h3 className="text-xl font-bold text-red-400 mb-4">
+                          Maximum Attempts Reached
+                        </h3>
+                        <p className="text-gray-300 text-lg mb-6">
+                          You have used all 3 explanation attempts for this problem.
+                        </p>
+                        <button
+                          onClick={closeExplanationModal}
+                          className="px-6 py-2 text-gray-300 hover:text-white transition-colors border border-gray-500 rounded-lg hover:border-gray-400"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <h3 className="text-xl font-bold text-gray-100 mb-2 text-center">Please provide a brief explanation of your solution</h3>
+                        {explanationAttempts > 0 && (
+                          <p className="text-gray-400 text-sm text-center mb-4">
+                            Attempt {explanationAttempts + 1} of 3
+                          </p>
+                        )}
+                    
+                    {isReviewing ? (
+                      // Show reviewing state
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="text-gray-300 text-center">
+                          <p className="text-lg font-medium">Reviewing your explanation...</p>
+                          <p className="text-sm text-gray-400 mt-1">This may take a moment</p>
+                        </div>
+                      </div>
+                    ) : (
+                      // Show normal recording interface
+                      <div className="flex flex-col items-center space-y-4">                        {!audioBlob ? (
+                          <button
+                            onClick={explanationAttempts >= 3 ? undefined : (isRecording ? stopRecording : startRecording)}
+                            disabled={explanationAttempts >= 3}
+                            className={`p-4 rounded-full transition-colors duration-200 ${
+                              explanationAttempts >= 3
+                                ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                                : isRecording
+                                ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                                : 'bg-orange-500 hover:bg-orange-600'
+                            }`}
+                          >
+                            {isRecording ? (
+                              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <rect x="6" y="6" width="8" height="8" rx="1" />
+                              </svg>
+                            ) : (
+                              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        ) : (
+                          <div className="w-full flex flex-col items-center">
+                            <audio controls src={audioUrl} className="w-full mb-2" />
+                            <div className="flex gap-2">                              <button
+                                onClick={explanationAttempts >= 3 ? undefined : () => {
+                                  if (audioUrl) {
+                                    URL.revokeObjectURL(audioUrl);
+                                    setAudioUrl(null);
+                                  }
+                                  setAudioBlob(null);
+                                }}
+                                disabled={explanationAttempts >= 3}
+                                className={`px-4 py-2 rounded ${
+                                  explanationAttempts >= 3
+                                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
+                                    : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                                }`}
+                              >
+                                Re-record
+                              </button>
+                              <button
+                                onClick={explanationAttempts >= 3 ? undefined : () => {
+                                  submitExplanation(audioBlob)
+                                }}
+                                disabled={explanationAttempts >= 3}
+                                className={`px-4 py-2 rounded ${
+                                  explanationAttempts >= 3
+                                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
+                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                }`}
+                              >
+                                Submit
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {isRecording && (
+                          <div className="text-red-400 font-mono text-lg">
+                            Recording... {recordingTime}s / 120s
+                          </div>                        )}
+                      </div>                    )}
+                        </>
+                    )}
+                      {!isReviewing && !showSuccessAnimation && !showFailureAnimation && (
+                      <div className="flex justify-center mt-6">
+
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Tabs - Fixed at top */}<div className="sticky top-0 bg-gray-800 border-b border-gray-700 z-10">
                 <div className="flex">
                   <button
                     onClick={() => setLeftActiveTab('description')}
@@ -613,8 +898,7 @@ except Exception as e:
                     }`}
                   >
                     Description
-                  </button>
-                  <button
+                  </button>                  <button
                     onClick={() => setLeftActiveTab('submissions')}
                     className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
                       leftActiveTab === 'submissions'
@@ -625,7 +909,7 @@ except Exception as e:
                     Submissions
                   </button>
                 </div>
-              </div>              <div className="flex-1 overflow-y-auto">
+              </div><div className="flex-1 overflow-y-auto">
                 <div className="p-6">
                   {leftActiveTab === 'description' && (
                     <>                      <h1 className="text-2xl font-bold text-gray-100 mb-4 flex justify-between items-center">
@@ -703,95 +987,10 @@ except Exception as e:
                             </div>
                           ))}
                         </div>
-                      )}
-                    </>
+                      )}                    </>
                   )}
                 </div>
-              </div>              {/* Explanation Modal - positioned over this panel */}
-              {showExplanationModal && (
-                <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-                  <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
-                    <h3 className="text-xl font-bold text-gray-100 mb-4">Give a brief explanation of your solution</h3>
-                    
-                    {isReviewing ? (
-                      // Show reviewing state
-                      <div className="flex flex-col items-center space-y-4">
-                        <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                        <div className="text-gray-300 text-center">
-                          <p className="text-lg font-medium">Reviewing your explanation...</p>
-                          <p className="text-sm text-gray-400 mt-1">This may take a moment</p>
-                        </div>
-                      </div>
-                    ) : (
-                      // Show normal recording interface
-                      <div className="flex flex-col items-center space-y-4">
-                        {!audioBlob ? (
-                          <button
-                            onClick={isRecording ? stopRecording : startRecording}
-                            className={`p-4 rounded-full transition-colors duration-200 ${
-                              isRecording
-                                ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                                : 'bg-orange-500 hover:bg-orange-600'
-                            }`}
-                          >
-                            {isRecording ? (
-                              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <rect x="6" y="6" width="8" height="8" rx="1" />
-                              </svg>
-                            ) : (
-                              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </button>
-                        ) : (
-                          <div className="w-full flex flex-col items-center">
-                            <audio controls src={audioUrl} className="w-full mb-2" />
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => {
-                                  if (audioUrl) {
-                                    URL.revokeObjectURL(audioUrl);
-                                    setAudioUrl(null);
-                                  }
-                                  setAudioBlob(null);
-                                }}
-                                className="px-4 py-2 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
-                              >
-                                Re-record
-                              </button>
-                              <button
-                                onClick={() => {
-                                  submitExplanation(audioBlob)
-                                }}
-                                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                              >
-                                Submit
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {isRecording && (
-                          <div className="text-red-400 font-mono text-lg">
-                            Recording... {recordingTime}s / 120s
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    {!isReviewing && (
-                      <div className="flex justify-end mt-6">
-                        <button
-                          onClick={closeExplanationModal}
-                          className="px-4 py-2 text-gray-400 hover:text-gray-300 transition-colors"
-                        >
-                          Done
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              </div>   
             </div>
           </Panel>
 
@@ -800,12 +999,8 @@ except Exception as e:
               <div className="w-0.5 h-8 bg-gray-600" />
             </div>
           </PanelResizeHandle>
-      {/* Code Editor Panel */}
-          <Panel defaultSize={60} minSize={40}>
+      {/* Code Editor Panel */}          <Panel defaultSize={60} minSize={40}>
             <div className="h-full flex flex-col bg-gray-800 relative">
-              {/* Lock overlay for modal */}
-              {showExplanationModal}
-              
               {/* Existing lock overlay */}
               {isLocked && (
                 <div className="absolute inset-0 z-50 bg-black bg-opacity-70 flex flex-col items-center justify-center">
@@ -824,12 +1019,10 @@ except Exception as e:
                 <Panel defaultSize={isPanelVisible ? 70 : 100} minSize={40}>
                   <div className="h-full flex flex-col bg-gray-800 border-l border-gray-700">
                     <div className="flex-1 p-4">
-                      <div className="w-full h-full rounded-lg overflow-hidden">
-                        <Editor
+                      <div className="w-full h-full rounded-lg overflow-hidden">                        <Editor
                           height="100%"
                           defaultLanguage="python"
-                          value={userCode}
-                          onChange={
+                          value={userCode}                          onChange={
                             isLocked || showExplanationModal
                               ? undefined
                               : (value) => setUserCode(value)
