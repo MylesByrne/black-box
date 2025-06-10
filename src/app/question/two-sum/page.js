@@ -6,17 +6,17 @@ import { useAuth } from '@/context/AuthContext';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import Editor from "@monaco-editor/react";
 import { submitCode } from '@/utils/judge0';
-import { collection } from '@firebase/firestore';
+import { transcribeAudio } from '@/utils/openAI';
+
 
 export default function ProblemPage() {
   const [problem, setProblem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [userCode, setUserCode] = useState('');
   const [testCases, setTestCases] = useState([]);
   const [activeTab, setActiveTab] = useState('testcases'); 
-  const [isPanelVisible, setIsPanelVisible] = useState(true);  const [isRunning, setIsRunning] = useState(false);
+  const [isPanelVisible, setIsPanelVisible] = useState(false);  const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState(null);
   const [isLocked, setIsLocked] = useState(true);
   const [timer, setTimer] = useState(0); 
@@ -81,16 +81,7 @@ export default function ProblemPage() {
     return `${m}:${s}`;
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
-        setIsProfileOpen(false);
-      }
-    };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   useEffect(() => {
     const fetchProblemAndTestCases = async () => {
@@ -390,16 +381,22 @@ except Exception as e:
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new window.MediaRecorder(stream);
+      const mediaRecorder = new window.MediaRecorder(stream, {
+        mimeType: 'audio/webm' // Keep this for recording
+      });
       mediaRecorderRef.current = mediaRecorder;
       const audioChunks = [];
       mediaRecorder.ondataavailable = (event) => {
         audioChunks.push(event.data);
       };
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        setAudioBlob(audioBlob);
-        // Create the URL once when recording stops
+        
+        // Convert to MP3-compatible format for submission
+        const mp3Blob = new Blob(audioChunks, { type: 'audio/mp3' });
+        setAudioBlob(mp3Blob);
+        
+        // Create the URL for playback (keep as webm for browser compatibility)
         const url = URL.createObjectURL(audioBlob);
         setAudioUrl(url);
         stream.getTracks().forEach(track => track.stop());
@@ -613,18 +610,34 @@ except Exception as e:
                       ) : (
                         <div className="w-full flex flex-col items-center">
                           <audio controls src={audioUrl} className="w-full mb-2" />
-                          <button
-                            onClick={() => {
-                              if (audioUrl) {
-                                URL.revokeObjectURL(audioUrl);
-                                setAudioUrl(null);
-                              }
-                              setAudioBlob(null);
-                            }}
-                            className="px-4 py-2 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
-                          >
-                            Re-record
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                if (audioUrl) {
+                                  URL.revokeObjectURL(audioUrl);
+                                  setAudioUrl(null);
+                                }
+                                setAudioBlob(null);
+                              }}
+                              className="px-4 py-2 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
+                            >
+                              Re-record
+                            </button>
+                            <button
+                              onClick={() => {
+                                // Add your submit logic here, e.g. save audioBlob/audioUrl or close modal
+                                transcribeAudio(audioBlob)
+                                  .then(transcription => {
+                                    console.log('Transcription:', transcription);
+                                    // Here you can handle the transcription result, e.g. save it to Firestore
+                                    setShowExplanationModal(false);
+                                  })
+                              }}
+                              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                            >
+                              Submit
+                            </button>
+                          </div>
                         </div>
                       )}
                       {isRecording && (
