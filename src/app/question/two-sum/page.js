@@ -30,10 +30,10 @@ export default function ProblemPage() {
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingTimerRef = useRef(null);
   const timerRef = useRef(null);
-  const profileRef = useRef(null);
-  const { getDocument, addDocument, setDocument, updateDocument } = useFirestore();
-  const { user, logout } = useAuth();
+  const profileRef = useRef(null);  const { getDocument, addDocument, setDocument, updateDocument } = useFirestore();  const { user, logout } = useAuth();
   const [explanation, setExplanation] = useState('');
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [userProblemData, setUserProblemData] = useState(null);
 
   const editorOptions = {
     minimap: { enabled: false },
@@ -74,12 +74,60 @@ export default function ProblemPage() {
     }
     return () => clearInterval(timerRef.current);
   }, [isLocked, timer]);
-
   // Format timer as MM:SS
   const formatTimer = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  };
+
+  // Function to render stars based on user progress
+  const renderStars = () => {
+    const stars = [];
+    const isSolved = userProblemData?.solved || false;
+    const hasPassedExplanation = userProblemData?.explanationGrade === 'PASS';
+    
+    // Star 1: Problem solved
+    stars.push(
+      <svg 
+        key="star1" 
+        className={`w-5 h-5 ${isSolved ? 'text-yellow-400' : 'text-gray-400'}`}
+        fill="currentColor" 
+        viewBox="0 0 20 20"
+      >
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+      </svg>
+    );
+
+    // Star 2: Explanation passed
+    stars.push(
+      <svg 
+        key="star2" 
+        className={`w-5 h-5 ${hasPassedExplanation ? 'text-yellow-400' : 'text-gray-400'}`}
+        fill="currentColor" 
+        viewBox="0 0 20 20"
+      >
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+      </svg>
+    );
+
+    // Star 3: Third achievement (to be implemented later)
+    stars.push(
+      <svg 
+        key="star3" 
+        className="w-5 h-5 text-gray-400"
+        fill="currentColor" 
+        viewBox="0 0 20 20"
+      >
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+      </svg>
+    );
+
+    return (
+      <div className="flex items-center space-x-1 ml-3">
+        {stars}
+      </div>
+    );
   };
 
 
@@ -106,10 +154,10 @@ export default function ProblemPage() {
                 explanationGrade: null,
               }
             }
-          })
-        } else {
+          })        } else {
           // Load existing submissions from Firestore
           const problemData = userDoc.problemData['two-sum'];
+          setUserProblemData(problemData); // Set the user problem data
           if (problemData.submissions) {
             // Convert submissions object to array and sort by timestamp (newest first)
             const submissionsArray = Object.entries(problemData.submissions)
@@ -311,8 +359,7 @@ except Exception as e:
                (response.time && parseFloat(response.time) < parseFloat(currentProblemData.bestSubmission.runtime.replace('s', ''))))) {
             updatedProblemData.bestSubmission = newSubmission;
           }
-          
-          // Update the user document with the new problem data
+            // Update the user document with the new problem data
           await updateDocument('Users', user.uid, {
             problemData: {
               ...userDoc.problemData,
@@ -320,15 +367,19 @@ except Exception as e:
             }
           });
           
+          // Update local state to reflect the changes
+          setUserProblemData(updatedProblemData);
+          
           console.log('Submission saved to Firestore');
           
         } catch (firestoreError) {
           console.error('Error saving submission to Firestore:', firestoreError);
         }
       }
-      
-      // Show explanation modal if accepted
+        // Show explanation modal if accepted
       if (submissionStatus === 'Accepted') {
+        // Stop the timer when submission is accepted
+        clearInterval(timerRef.current);
         setLeftActiveTab('submissions');
         setShowExplanationModal(true);
       }
@@ -407,7 +458,15 @@ except Exception as e:
       setIsRecording(true);
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
+        setRecordingTime((prev) => {
+          const newTime = prev + 1;
+          // Stop recording at 2 minutes (120 seconds)
+          if (newTime >= 120) {
+            stopRecording();
+            return 120;
+          }
+          return newTime;
+        });
       }, 1000);
     } catch (err) {
       alert('Microphone access denied or unavailable.');
@@ -421,7 +480,6 @@ except Exception as e:
       clearInterval(recordingTimerRef.current);
     }
   };
-
   const closeExplanationModal = () => {
     // Clean up the object URL to prevent memory leaks
     if (audioUrl) {
@@ -432,10 +490,11 @@ except Exception as e:
     setAudioBlob(null);
     setRecordingTime(0);
     setIsRecording(false);
+    setIsReviewing(false);
     clearInterval(recordingTimerRef.current);
   };
-
   const submitExplanation = async (audio) => {
+    setIsReviewing(true);
     try {
       // First transcribe the audio
       const transcribedText = await transcribeAudio(audio);
@@ -472,50 +531,27 @@ except Exception as e:
             ...currentProblemData,
             explanationGrade: 'PASS'
           };
-          
-          await updateDocument('Users', user.uid, {
+            await updateDocument('Users', user.uid, {
             problemData: {
               ...userDoc.problemData,
               'two-sum': updatedProblemData
             }
           });
           
+          // Update local state to reflect the changes
+          setUserProblemData(updatedProblemData);
+          
           console.log('Explanation grade updated to PASS');
-          alert('Great explanation! Marked as PASS.');
         } catch (updateError) {
           console.error('Error updating explanation grade:', updateError);
           alert('Explanation graded as PASS, but failed to save to database.');
         }
-      } else {
-        // Handle FAIL case
-        try {
-          const userDoc = await getDocument('Users', user.uid);
-          const currentProblemData = userDoc?.problemData?.['two-sum'] || {};
-          
-          const updatedProblemData = {
-            ...currentProblemData,
-            explanationGrade: 'FAIL'
-          };
-          
-          await updateDocument('Users', user.uid, {
-            problemData: {
-              ...userDoc.problemData,
-              'two-sum': updatedProblemData
-            }
-          });
-          
-          console.log('Explanation grade updated to FAIL');
-          alert('Explanation needs improvement. Try explaining more clearly.');
-        } catch (updateError) {
-          console.error('Error updating explanation grade:', updateError);
-          alert('Explanation graded as FAIL, but failed to save to database.');
-        }
       }
-      
     } catch (err) {
       console.error('Error:', err);
       alert(`Error: ${err.message}`);
     } finally {
+      setIsReviewing(false);
       closeExplanationModal();
     }
   };
@@ -592,9 +628,11 @@ except Exception as e:
               </div>              <div className="flex-1 overflow-y-auto">
                 <div className="p-6">
                   {leftActiveTab === 'description' && (
-                    <>
-                      <h1 className="text-2xl font-bold text-gray-100 mb-4 flex justify-between items-center">
-                        {problem.title}              
+                    <>                      <h1 className="text-2xl font-bold text-gray-100 mb-4 flex justify-between items-center">
+                        <div className="flex items-center">
+                          {problem.title}              
+                          {renderStars()}
+                        </div>
                         <span className="text-gray-400 text-lg font-mono ml-auto">
                           {formatTimer(timer)}
                         </span>
@@ -669,75 +707,88 @@ except Exception as e:
                     </>
                   )}
                 </div>
-              </div>
-
-              {/* Explanation Modal - positioned over this panel */}
+              </div>              {/* Explanation Modal - positioned over this panel */}
               {showExplanationModal && (
                 <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
                   <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
                     <h3 className="text-xl font-bold text-gray-100 mb-4">Give a brief explanation of your solution</h3>
-                    <div className="flex flex-col items-center space-y-4">
-                      {!audioBlob ? (
-                        <button
-                          onClick={isRecording ? stopRecording : startRecording}
-                          className={`p-4 rounded-full transition-colors duration-200 ${
-                            isRecording
-                              ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                              : 'bg-orange-500 hover:bg-orange-600'
-                          }`}
-                        >
-                          {isRecording ? (
-                            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <rect x="6" y="6" width="8" height="8" rx="1" />
-                            </svg>
-                          ) : (
-                            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </button>
-                      ) : (
-                        <div className="w-full flex flex-col items-center">
-                          <audio controls src={audioUrl} className="w-full mb-2" />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                if (audioUrl) {
-                                  URL.revokeObjectURL(audioUrl);
-                                  setAudioUrl(null);
-                                }
-                                setAudioBlob(null);
-                              }}
-                              className="px-4 py-2 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
-                            >
-                              Re-record
-                            </button>
-                            <button
-                              onClick={() => {
-                                // Add your submit logic here, e.g. save audioBlob/audioUrl or close modal
-                                submitExplanation(audioBlob)
-                              }}
-                              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                            >
-                              Submit
-                            </button>
+                    
+                    {isReviewing ? (
+                      // Show reviewing state
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="text-gray-300 text-center">
+                          <p className="text-lg font-medium">Reviewing your explanation...</p>
+                          <p className="text-sm text-gray-400 mt-1">This may take a moment</p>
+                        </div>
+                      </div>
+                    ) : (
+                      // Show normal recording interface
+                      <div className="flex flex-col items-center space-y-4">
+                        {!audioBlob ? (
+                          <button
+                            onClick={isRecording ? stopRecording : startRecording}
+                            className={`p-4 rounded-full transition-colors duration-200 ${
+                              isRecording
+                                ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                                : 'bg-orange-500 hover:bg-orange-600'
+                            }`}
+                          >
+                            {isRecording ? (
+                              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <rect x="6" y="6" width="8" height="8" rx="1" />
+                              </svg>
+                            ) : (
+                              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        ) : (
+                          <div className="w-full flex flex-col items-center">
+                            <audio controls src={audioUrl} className="w-full mb-2" />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  if (audioUrl) {
+                                    URL.revokeObjectURL(audioUrl);
+                                    setAudioUrl(null);
+                                  }
+                                  setAudioBlob(null);
+                                }}
+                                className="px-4 py-2 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
+                              >
+                                Re-record
+                              </button>
+                              <button
+                                onClick={() => {
+                                  submitExplanation(audioBlob)
+                                }}
+                                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                              >
+                                Submit
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      {isRecording && (
-                        <div className="text-red-400 font-mono text-lg">
-                          Recording... {recordingTime}s
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex justify-end mt-6">
-                      <button
-                        onClick={closeExplanationModal}
-                        className="px-4 py-2 text-gray-400 hover:text-gray-300 transition-colors"
-                      >
-                        Done
-                      </button>
-                    </div>
+                        )}
+                        {isRecording && (
+                          <div className="text-red-400 font-mono text-lg">
+                            Recording... {recordingTime}s / 120s
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {!isReviewing && (
+                      <div className="flex justify-end mt-6">
+                        <button
+                          onClick={closeExplanationModal}
+                          className="px-4 py-2 text-gray-400 hover:text-gray-300 transition-colors"
+                        >
+                          Done
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
