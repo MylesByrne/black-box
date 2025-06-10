@@ -33,6 +33,7 @@ export default function ProblemPage() {
   const profileRef = useRef(null);
   const { getDocument, addDocument, setDocument, updateDocument } = useFirestore();
   const { user, logout } = useAuth();
+  const [explanation, setExplanation] = useState('');
 
   const editorOptions = {
     minimap: { enabled: false },
@@ -101,7 +102,8 @@ export default function ProblemPage() {
           await updateDocument(`Users`, `${user.uid}`, {
             problemData: {
               'two-sum': {
-                submissions: {}
+                submissions: {},
+                explanationGrade: null,
               }
             }
           })
@@ -433,6 +435,93 @@ except Exception as e:
     clearInterval(recordingTimerRef.current);
   };
 
+  const submitExplanation = async (audio) => {
+    try {
+      // First transcribe the audio
+      const transcribedText = await transcribeAudio(audio);
+      setExplanation(transcribedText);
+      
+      // Then use the transcribed text for grading
+      const res = await fetch('/api/openai/gradeExplination', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          code: userCode.trim(),
+          explanation: transcribedText // Use the transcribed text directly
+        })
+      });
+
+      const data = await res.json();
+      console.log('OpenAI response:', data);
+
+      if (!res.ok) {
+        throw new Error(data.error || 'API call failed');
+      }
+
+      // Update only the explanationGrade field
+      if (data.grade === 'PASS') {
+        try {
+          // Get current user document
+          const userDoc = await getDocument('Users', user.uid);
+          const currentProblemData = userDoc?.problemData?.['two-sum'] || {};
+          
+          // Update only the explanationGrade field, preserving all other data
+          const updatedProblemData = {
+            ...currentProblemData,
+            explanationGrade: 'PASS'
+          };
+          
+          await updateDocument('Users', user.uid, {
+            problemData: {
+              ...userDoc.problemData,
+              'two-sum': updatedProblemData
+            }
+          });
+          
+          console.log('Explanation grade updated to PASS');
+          alert('Great explanation! Marked as PASS.');
+        } catch (updateError) {
+          console.error('Error updating explanation grade:', updateError);
+          alert('Explanation graded as PASS, but failed to save to database.');
+        }
+      } else {
+        // Handle FAIL case
+        try {
+          const userDoc = await getDocument('Users', user.uid);
+          const currentProblemData = userDoc?.problemData?.['two-sum'] || {};
+          
+          const updatedProblemData = {
+            ...currentProblemData,
+            explanationGrade: 'FAIL'
+          };
+          
+          await updateDocument('Users', user.uid, {
+            problemData: {
+              ...userDoc.problemData,
+              'two-sum': updatedProblemData
+            }
+          });
+          
+          console.log('Explanation grade updated to FAIL');
+          alert('Explanation needs improvement. Try explaining more clearly.');
+        } catch (updateError) {
+          console.error('Error updating explanation grade:', updateError);
+          alert('Explanation graded as FAIL, but failed to save to database.');
+        }
+      }
+      
+    } catch (err) {
+      console.error('Error:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      closeExplanationModal();
+    }
+  };
+
+
+
   return (
     <div className="min-h-screen bg-gray-800 flex flex-col">
       {/* Header */}
@@ -626,12 +715,7 @@ except Exception as e:
                             <button
                               onClick={() => {
                                 // Add your submit logic here, e.g. save audioBlob/audioUrl or close modal
-                                transcribeAudio(audioBlob)
-                                  .then(transcription => {
-                                    console.log('Transcription:', transcription);
-                                    // Here you can handle the transcription result, e.g. save it to Firestore
-                                    setShowExplanationModal(false);
-                                  })
+                                submitExplanation(audioBlob)
                               }}
                               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                             >
