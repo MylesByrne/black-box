@@ -206,6 +206,7 @@ export default function ProblemPage() {
           // If user hasn't attempted this problem, create a new document
           await updateDocument(`Users`, `${user.uid}`, {
             problemData: {
+              ...userDoc.problemData,
               [problemId]: {
                 submissions: {},
                 explanationGrade: null,
@@ -233,7 +234,11 @@ export default function ProblemPage() {
         // Fetch test cases
         const testCasesData = problemData.testCases;
         if (testCasesData) {
-          // Convert the test cases object into an array
+//
+//
+//
+//
+//
           const testCasesArray = Object.entries(testCasesData).map(([id, data]) => ({
             id,
             nums: Object.values(data.nums),
