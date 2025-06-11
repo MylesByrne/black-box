@@ -15,7 +15,7 @@ import remarkGfm from 'remark-gfm';
 
 
 export default function ProblemPage() {
-  const problemId = "two-sum"; // Hardcoded
+  const problemId = "contains-duplicate"; // Hardcoded
   const [problem, setProblem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -237,8 +237,7 @@ export default function ProblemPage() {
           const testCasesArray = Object.entries(testCasesData).map(([id, data]) => ({
             id,
             nums: Object.values(data.nums),
-            target: data.target,
-            expected: Object.values(data.expected)
+            expected: data.expected
           }));
           setTestCases(testCasesArray);
         }
@@ -286,11 +285,11 @@ def check_solution():
   
   for i in range(len(testCases)):
       testCase = testCases[i]
-      result = solution.${functionName}(${problem.testCaseArgs})
+      result = str(solution.${functionName}(${problem.testCaseArgs}))
       if result == testCase['expected']:
         continue
       else:
-        print(f"Test case {i+1}: Failed | Input: ${problem.testCaseInputFormat} | Expected: {testCase['expected']}, Got: {result}")
+        print(f"Test case {i+1}: Failed | Input: ${problem.testCaseInputFormat || "nums={testCase['nums']}, target={testCase['target']}"} | Expected: {testCase['expected']}, Got: {result}")
         return
   print("SUBMISSION_RESULT: Accepted")
         
@@ -335,12 +334,11 @@ def check_solution():
   
   for i in range(len(testCases)):
       testCase = testCases[i]
-      result = solution.${functionName}(${problem.testCaseArgs})
+      result = str(solution.${functionName}(${problem.testCaseArgs}))
       if result == testCase['expected']:
         passed += 1
       else:
         print(f"Test case {i+1}: Failed | Input: ${problem.testCaseInputFormat || "nums={testCase['nums']}, target={testCase['target']}"} | Expected: testCase['expected'], Got: {result}")
-  
   if passed == total:
     return True
   else:
@@ -1269,7 +1267,9 @@ except Exception as e:
                           theme="vs-dark"
                           options={{ ...editorOptions, readOnly: isLocked || showExplanationModal || showQuestionsModal }}
                           className="rounded-lg"
-                          defaultValue={problem.codeTemplate}
+                          defaultValue={problem.codeTemplate || `class Solution:
+    def hasDuplicate(self, nums: List[int]) -> bool:
+        `}
                         />
                       </div>
                     </div>
