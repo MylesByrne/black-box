@@ -7,6 +7,10 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import Editor from "@monaco-editor/react";
 import { submitCode } from '@/utils/judge0';
 import { transcribeAudio } from '@/utils/openAI';
+import ReactMarkdown from 'react-markdown';
+import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
+import remarkGfm from 'remark-gfm';
 
 
 export default function ProblemPage() {
@@ -774,11 +778,11 @@ except Exception as e:
       <div className="flex-1 pt-16">
         <PanelGroup direction="horizontal">
           {/* Problem Description Panel */}          <Panel defaultSize={40} minSize={30}>
-            <div className="h-full flex flex-col bg-gray-800 border-r border-gray-700 relative">
+            <div className="h-full flex flex-col bg-gray-900 rounded-lg m-2 shadow-lg overflow-hidden">
               
               {/* Questions Loading Overlay */}
               {isLoadingQuestions && (
-                <div className="absolute inset-0 z-40 bg-gray-800 bg-opacity-90 flex items-center justify-center">
+                <div className="absolute inset-0 z-40 bg-gray-900 bg-opacity-90 flex items-center justify-center">
                   <div className="flex flex-col items-center space-y-4">
                     <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
                     <div className="text-gray-100 text-center">
@@ -789,360 +793,132 @@ except Exception as e:
                 </div>
               )}
               
-              {/* Explanation Modal Overlay */}
-              {showExplanationModal && (
-                <div className="absolute inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-6 modal-fade-in">{/* Success Animation */}
-                  {showSuccessAnimation && (
-                    <div className="absolute inset-0 pointer-events-none">
-                      {/* Confetti particles */}
-                      {[...Array(30)].map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute"
-                          style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * 100}%`,
-                            animation: `confetti ${1 + Math.random() * 2}s ease-out ${Math.random() * 0.5}s forwards`
-                          }}
-                        >
-                          <div 
-                            className="w-2 h-2 rounded-sm opacity-90"
-                            style={{
-                              backgroundColor: ['#fbbf24', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#f97316'][Math.floor(Math.random() * 6)],
-                              transform: `rotate(${Math.random() * 360}deg)`
-                            }}
-                          />
-                        </div>
-                      ))}
-                      
-                      {/* Floating stars */}
-                      {[...Array(10)].map((_, i) => (
-                        <div
-                          key={`star-${i}`}
-                          className="absolute text-yellow-400"
-                          style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * 100}%`,
-                            animation: `float ${2 + Math.random()}s ease-in-out ${Math.random() * 1}s infinite alternate`
-                          }}
-                        >
-                          ⭐
-                        </div>
-                      ))}
-                      
-                      {/* Success checkmark */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="bg-green-500 rounded-full p-6 shadow-2xl" style={{animation: 'popup 0.6s ease-out'}}>
-                          <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Failure Animation */}
-                  {showFailureAnimation && (
-                    <div className="absolute inset-0 pointer-events-none">
-                      {/* Falling X marks */}
-                      {[...Array(15)].map((_, i) => (
-                        <div
-                          key={`x-${i}`}
-                          className="absolute text-red-500 text-2xl font-bold"
-                          style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * 100}%`,
-                            animation: `fallDown ${1.5 + Math.random()}s ease-in ${Math.random() * 0.5}s forwards`
-                          }}
-                        >
-                          ✗
-                        </div>
-                      ))}
-                      
-                      {/* Shaking sad faces */}
-                      {[...Array(8)].map((_, i) => (
-                        <div
-                          key={`sad-${i}`}
-                          className="absolute text-gray-400 text-lg"
-                          style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * 100}%`,
-                            animation: `shake ${0.5 + Math.random() * 0.5}s ease-in-out ${Math.random() * 1}s infinite`
-                          }}
-                        >
-                          😔
-                        </div>
-                      ))}
-                      
-                      {/* Failure X mark */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="bg-red-500 rounded-full p-6 shadow-2xl" style={{animation: 'shake 0.8s ease-out'}}>
-                          <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                    <div className="max-w-lg w-full">                    {showSuccessAnimation ? (
-                      <div className="text-center">
-                        <h3 className="text-2xl font-bold text-green-400 mb-4 animate-pulse">
-                          Excellent Explanation! 🎉
-                        </h3>
-                        <p className="text-gray-300 text-lg">
-                          Your explanation has been accepted
-                        </p>
-                      </div>
-                    ) : showFailureAnimation ? (
-                      <div className="text-center">
-                        <h3 className="text-2xl font-bold text-red-400 mb-4 animate-pulse">
-                          {explanationAttempts >= 3 ? 'Max Attempts Reached' : 'Try Again! 💪'}
-                        </h3>
-                        <p className="text-gray-300 text-lg">
-                          {explanationAttempts >= 3 
-                            ? 'You have used all 3 explanation attempts' 
-                            : `Your explanation needs more detail (${explanationAttempts}/3 attempts)`
-                          }
-                        </p>
-                      </div>
-                    ) : explanationAttempts >= 3 ? (
-                      <div className="text-center">
-                        <h3 className="text-xl font-bold text-red-400 mb-4">
-                          Maximum Attempts Reached
-                        </h3>
-                        <p className="text-gray-300 text-lg mb-6">
-                          You have used all 3 explanation attempts for this problem.
-                        </p>
-                        <button
-                          onClick={closeExplanationModal}
-                          className="px-6 py-2 text-gray-300 hover:text-white transition-colors border border-gray-500 rounded-lg hover:border-gray-400"
-                        >
-                          Close
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <h3 className="text-xl font-bold text-gray-100 mb-2 text-center">Please provide a brief explanation of your solution</h3>
-                        {explanationAttempts > 0 && (
-                          <p className="text-gray-400 text-sm text-center mb-4">
-                            Attempt {explanationAttempts + 1} of 3
-                          </p>
-                        )}
-                    
-                    {isReviewing ? (
-                      // Show reviewing state
-                      <div className="flex flex-col items-center space-y-4">
-                        <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                        <div className="text-gray-300 text-center">
-                          <p className="text-lg font-medium">Reviewing your explanation...</p>
-                          <p className="text-sm text-gray-400 mt-1">This may take a moment</p>
-                        </div>
-                      </div>
-                    ) : (
-                      // Show normal recording interface
-                      <div className="flex flex-col items-center space-y-4">                        {!audioBlob ? (
-                          <button
-                            onClick={explanationAttempts >= 3 ? undefined : (isRecording ? stopRecording : startRecording)}
-                            disabled={explanationAttempts >= 3}
-                            className={`p-4 rounded-full transition-colors duration-200 ${
-                              explanationAttempts >= 3
-                                ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                                : isRecording
-                                ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                                : 'bg-orange-500 hover:bg-orange-600'
-                            }`}
-                          >
-                            {isRecording ? (
-                              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <rect x="6" y="6" width="8" height="8" rx="1" />
-                              </svg>
-                            ) : (
-                              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </button>
-                        ) : (
-                          <div className="w-full flex flex-col items-center">
-                            <audio controls src={audioUrl} className="w-full mb-2" />
-                            <div className="flex gap-2">                              <button
-                                onClick={explanationAttempts >= 3 ? undefined : () => {
-                                  if (audioUrl) {
-                                    URL.revokeObjectURL(audioUrl);
-                                    setAudioUrl(null);
-                                  }
-                                  setAudioBlob(null);
-                                }}
-                                disabled={explanationAttempts >= 3}
-                                className={`px-4 py-2 rounded ${
-                                  explanationAttempts >= 3
-                                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
-                                    : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
-                                }`}
-                              >
-                                Re-record
-                              </button>
-                              <button
-                                onClick={explanationAttempts >= 3 ? undefined : () => {
-                                  submitExplanation(audioBlob)
-                                }}
-                                disabled={explanationAttempts >= 3}
-                                className={`px-4 py-2 rounded ${
-                                  explanationAttempts >= 3
-                                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
-                                    : 'bg-green-600 text-white hover:bg-green-700'
-                                }`}
-                              >
-                                Submit
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {isRecording && (
-                          <div className="text-red-400 font-mono text-lg">
-                            Recording... {recordingTime}s / 120s
-                          </div>                        )}
-                      </div>                    )}
-                        </>
-                    )}
-                      {!isReviewing && !showSuccessAnimation && !showFailureAnimation && (
-                      <div className="flex justify-center mt-6">
-
-                      </div>
-                    )}
-                  </div>
-                </div>              )}
-                {/* Questions Modal Overlay */}
-              {showQuestionsModal && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center p-6 modal-fade-in">
-                  <div className="max-w-4xl w-full bg-gray-900 rounded-lg p-8 max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-700">
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-2xl font-bold text-gray-100">Multiple Choice Questions</h2>
-                      <button
-                        onClick={closeQuestionsModal}
-                        className="text-gray-400 hover:text-gray-200 text-xl"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    
-                    {isLoadingQuestions ? (
-                      <div className="flex flex-col items-center space-y-4">
-                        <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                        <div className="text-gray-300 text-center">
-                          <p className="text-lg font-medium">Generating questions...</p>
-                          <p className="text-sm text-gray-400 mt-1">This may take a moment</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-gray-300 text-lg mb-6">
-                          Answer the following questions about your solution:
-                        </p>
-                        
-                        <div className="space-y-6">
-                          {questions.map((question, questionIndex) => (
-                            <div key={questionIndex} className="bg-gray-800 rounded-lg p-6">
-                              <h3 className="text-lg font-semibold text-gray-100 mb-4">
-                                {questionIndex + 1}. {question.question}
-                              </h3>
-                              
-                              <div className="space-y-3">
-                                {question.options.map((option, optionIndex) => (
-                                  <label
-                                    key={optionIndex}
-                                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                                      selectedAnswers[questionIndex] === optionIndex
-                                        ? 'bg-orange-900 border border-orange-500'
-                                        : 'bg-gray-700 hover:bg-gray-600'
-                                    }`}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={`question-${questionIndex}`}
-                                      value={optionIndex}
-                                      checked={selectedAnswers[questionIndex] === optionIndex}
-                                      onChange={() => handleAnswerSelect(questionIndex, optionIndex)}
-                                      className="text-orange-500 focus:ring-orange-500"
-                                    />
-                                    <span className="text-gray-200">{option}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        
-                        <div className="flex justify-center mt-8">
-                          <button
-                            onClick={submitQuestions}
-                            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 px-8 py-3 rounded-lg text-lg font-semibold shadow-lg transition"
-                          >
-                            Submit Answers
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Tabs - Fixed at top */}<div className="sticky top-0 bg-gray-800 border-b border-gray-700 z-10">
+              {/* Tabs - Fixed at top */}
+              <div className="sticky top-0 bg-gray-900 border-b border-gray-700 z-10 px-2">
                 <div className="flex">
                   <button
                     onClick={() => setLeftActiveTab('description')}
-                    className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
+                    className={`px-4 py-3 text-sm font-medium transition-colors duration-200 relative ${
                       leftActiveTab === 'description'
-                        ? 'text-orange-400 border-b-2 border-orange-400'
-                        : 'text-gray-400 hover:text-orange-300'
+                        ? 'text-white'
+                        : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
                     Description
-                  </button>                  <button
+                    {leftActiveTab === 'description' && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full"></span>
+                    )}
+                  </button>
+                  <button
                     onClick={() => setLeftActiveTab('submissions')}
-                    className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
+                    className={`px-4 py-3 text-sm font-medium transition-colors duration-200 relative ${
                       leftActiveTab === 'submissions'
-                        ? 'text-orange-400 border-b-2 border-orange-400'
-                        : 'text-gray-400 hover:text-orange-300'
+                        ? 'text-white'
+                        : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
                     Submissions
+                    {leftActiveTab === 'submissions' && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full"></span>
+                    )}
                   </button>
                 </div>
-              </div><div className="flex-1 overflow-y-auto">
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <div className="p-6">
                   {leftActiveTab === 'description' && (
-                    <>                      <h1 className="text-2xl font-bold text-gray-100 mb-4 flex justify-between items-center">
+                    <>
+                      <h1 className="text-2xl font-bold text-white mb-4 flex justify-between items-center">
                         <div className="flex items-center">
                           {problem.title}              
                           {renderStars()}
                         </div>
-                        <span className="text-gray-400 text-lg font-mono ml-auto">
+                        <span className="text-gray-300 text-lg font-mono ml-auto bg-gray-800 px-3 py-1 rounded-md border border-gray-700">
                           {formatTimer(timer)}
                         </span>
                       </h1>
-                      <div className="flex items-center space-x-4 mb-4">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          problem.difficulty === 'easy' ? 'bg-green-900 text-green-400' :
-                          problem.difficulty === 'medium' ? 'bg-yellow-900 text-yellow-400' :
-                          'bg-red-900 text-red-400'
+                      <div className="flex items-center space-x-4 mb-6">
+                        <span className={`px-2.5 py-1.5 rounded-full text-xs font-medium ${
+                          problem.difficulty === 'easy' ? 'bg-green-900/40 text-green-300' :
+                          problem.difficulty === 'medium' ? 'bg-yellow-900/40 text-yellow-300' :
+                          'bg-red-900/40 text-red-300'
                         }`}>
                           {problem.difficulty?.charAt(0).toUpperCase() + problem.difficulty?.slice(1)}
                         </span>
                       </div>
-                      <div className="prose max-w-none mb-8 text-gray-300">
-                        <p className="whitespace-pre-wrap">
-                          {problem.description}
-                        </p>
+                      <div className="prose prose-invert max-w-none mb-8 text-gray-200">
+                        <div className="markdown-body bg-transparent">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeRaw, [rehypeHighlight, { theme: 'github-dark', ignoreMissing: true }]]}
+                            components={{
+                              code({node, inline, className, children, ...props}) {
+                                // Extract language but don't use className directly on elements
+                                const match = /language-(\w+)/.exec(className || '');
+                                const language = match ? match[1] : '';
+                                
+                                return !inline && match ? (
+                                  <div className="overflow-auto rounded-md border border-gray-700 bg-gray-900/50 my-4">
+                                    <pre className="p-4 text-sm" {...props}>
+                                      <code className={`language-${language}`}>
+                                        {children}
+                                      </code>
+                                    </pre>
+                                  </div>
+                                ) : (
+                                  <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm">
+                                    {children}
+                                  </code>
+                                );
+                              },
+                              pre({children}) {
+                                return children;
+                              },
+                              a({node, children, href, ...props}) {
+                                return (
+                                  <a href={href} className="text-blue-400 hover:text-blue-300 underline" {...props}>
+                                    {children}
+                                  </a>
+                                );
+                              },
+                              table({children}) {
+                                return (
+                                  <div className="overflow-x-auto my-4">
+                                    <table className="border-collapse w-full text-sm border border-gray-700">
+                                      {children}
+                                    </table>
+                                  </div>
+                                );
+                              },
+                              th({children}) {
+                                return (
+                                  <th className="border border-gray-700 bg-gray-800 px-4 py-2 text-left font-semibold">
+                                    {children}
+                                  </th>
+                                );
+                              },
+                              td({children}) {
+                                return (
+                                  <td className="border border-gray-700 px-4 py-2">
+                                    {children}
+                                  </td>
+                                );
+                              }
+                            }}
+                          >
+                            {problem.description}
+                          </ReactMarkdown>
+                        </div>
                       </div>
                     </>
                   )}
 
                   {leftActiveTab === 'submissions' && (
                     <>
-                      <h1 className="text-2xl font-bold text-gray-100 mb-4">Submissions</h1>
+                      <h1 className="text-2xl font-bold text-white mb-6">Submissions</h1>
                       {submissions.length === 0 ? (
-                        <div className="text-gray-400 text-center mt-8">
+                        <div className="text-gray-400 text-center mt-8 bg-gray-800/50 p-8 rounded-xl">
                           <div className="mb-4">
                             <svg className="w-16 h-16 mx-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1156,19 +932,18 @@ except Exception as e:
                           {submissions.map((submission, index) => (
                             <div
                               key={index}
-                              className="p-4 bg-gray-900 rounded-lg border border-gray-700"
+                              className="p-5 bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-700/50 shadow-sm hover:shadow-md transition-all duration-200"
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  submission.status === 'Accepted' ? 'bg-green-900 text-green-400' :
-                                  submission.status === 'Wrong Answer' ? 'bg-red-900 text-red-400' :
-                                  'bg-yellow-900 text-yellow-400'
+                              <div className="flex items-center justify-between mb-3">
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  submission.status === 'Accepted' ? 'bg-green-900/60 text-green-300' :
+                                  submission.status === 'Wrong Answer' ? 'bg-red-900/60 text-red-300' :
+                                  'bg-yellow-900/60 text-yellow-300'
                                 }`}>
                                   {submission.status}
                                 </span>
                                 <span className="text-gray-400 text-sm">
-                                  {new Date(submission.timestamp).toLocaleString()
-                                  }
+                                  {new Date(submission.timestamp).toLocaleString()}
                                 </span>
                               </div>
                               <div className="text-gray-300 text-sm">
@@ -1179,7 +954,7 @@ except Exception as e:
                                   <span className="text-gray-400">Memory:</span> {submission.memory || 'N/A'}
                                 </div>
                                 {submission.status !== 'Accepted' && submission.error && (
-                                  <div className="mt-2 p-2 bg-red-900/20 rounded text-red-400 text-xs">
+                                  <div className="mt-2 p-3 bg-red-900/20 rounded-lg text-red-300 text-xs font-mono">
                                     {submission.error}
                                   </div>
                                 )}
@@ -1187,16 +962,17 @@ except Exception as e:
                             </div>
                           ))}
                         </div>
-                      )}                    </>
+                      )}
+                    </>
                   )}
                 </div>
               </div>   
             </div>
           </Panel>
 
-          <PanelResizeHandle className="w-2 bg-gray-700 hover:bg-gray-600 transition-colors duration-150">
+          <PanelResizeHandle className="w-2 bg-gray-700/50 hover:bg-orange-500/70 transition-colors duration-200">
             <div className="w-full h-full flex items-center justify-center">
-              <div className="w-0.5 h-8 bg-gray-600" />
+              <div className="w-1 h-12 rounded-full bg-gray-600/80" />
             </div>
           </PanelResizeHandle>
       {/* Code Editor Panel */}          <Panel defaultSize={60} minSize={40}>
