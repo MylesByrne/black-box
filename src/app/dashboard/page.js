@@ -112,7 +112,7 @@ export default function Dashboard() {
           <div className="flex justify-between items-center h-16">
             {/* Logo and Navigation */}
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="text-2xl font-bold text-gray-800 hover:text-orange-700">
+              <Link href="/dashboard" className="text-2xl font-bold text-gray-800 hover:text-gray-600">
                 Black Box
               </Link>
               
@@ -247,11 +247,10 @@ export default function Dashboard() {
           </div>
           <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-4">
-              {problems.map((problem) => (
-                <Link
+              {problems.map((problem) => (                <Link
                   key={problem.id}
                   href={`/question/${problem.id}`}
-                  className="block p-4 rounded-lg border border-gray-200 hover:border-orange-500 transition-colors duration-200"
+                  className="block p-4 rounded-lg border border-gray-200 hover:border-gray-400 transition-colors duration-200"
                 >
                   <div className="flex justify-between items-start">
                     <div>

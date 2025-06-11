@@ -37,12 +37,27 @@ export default function ProblemPage() {
   const profileRef = useRef(null);  const { getDocument, addDocument, setDocument, updateDocument } = useFirestore();  const { user, logout } = useAuth();  const [explanation, setExplanation] = useState('');
   const [isReviewing, setIsReviewing] = useState(false);
   const [userProblemData, setUserProblemData] = useState(null);  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
-  const [showFailureAnimation, setShowFailureAnimation] = useState(false);
-  const [explanationAttempts, setExplanationAttempts] = useState(0);
+  const [showFailureAnimation, setShowFailureAnimation] = useState(false);  const [explanationAttempts, setExplanationAttempts] = useState(0);
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [isTimerRed, setIsTimerRed] = useState(false);  const [isTimerFlashing, setIsTimerFlashing] = useState(false);
+  const flashCountRef = useRef(0);
+
+  // State for explanation pass animation
+  const [showPassAnimation, setShowPassAnimation] = useState(false);
+  
+  // State for questions modal animations and attempts
+  const [questionsAttempts, setQuestionsAttempts] = useState(0);
+  const [showQuestionsPassAnimation, setShowQuestionsPassAnimation] = useState(false);
+  const [showQuestionsFailAnimation, setShowQuestionsFailAnimation] = useState(false);
+
+  const formatRecordingTime = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   const editorOptions = {
     minimap: { enabled: false },
@@ -64,7 +79,7 @@ export default function ProblemPage() {
     }
   };
 
-  // Set timer based on difficulty when problem loads
+  // Set timer based on difficulty when problem loads   
   useEffect(() => {
     if (problem && isLocked) {
       let minutes = 35;
@@ -83,6 +98,35 @@ export default function ProblemPage() {
     }
     return () => clearInterval(timerRef.current);
   }, [isLocked, timer]);
+
+  // Timer warning effect
+  useEffect(() => {
+    // Check if timer is below 10 minutes (600 seconds) and not already flashing
+    if (timer <= 600 && timer > 0 && !isTimerFlashing && !isTimerRed) {
+      setIsTimerFlashing(true);
+      flashCountRef.current = 0;
+      
+      const flashTimer = () => {
+        // Toggle red state
+        setIsTimerRed(prev => !prev);
+        flashCountRef.current += 1;
+        
+        // After 6 state changes (3 complete flashes), keep it red permanently
+        if (flashCountRef.current >= 6) {
+          setIsTimerRed(true);
+          setIsTimerFlashing(false);
+          return;
+        }
+        
+        // Continue flashing
+        setTimeout(flashTimer, 500);
+      };
+      
+      // Start flashing sequence
+      flashTimer();
+    }
+  }, [timer, isTimerFlashing]);
+
   // Format timer as MM:SS
   const formatTimer = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -469,12 +513,17 @@ except Exception as e:
         
         // Convert to MP3-compatible format for submission
         const mp3Blob = new Blob(audioChunks, { type: 'audio/mp3' });
-        setAudioBlob(mp3Blob);
+        setAudioBlob(mp3Blob); // Still useful if needed elsewhere, or for retry logic
         
-        // Create the URL for playback (keep as webm for browser compatibility)
+        // Create the URL for playback (though not directly used in UI anymore, might be useful for debugging/future)
         const url = URL.createObjectURL(audioBlob);
         setAudioUrl(url);
         stream.getTracks().forEach(track => track.stop());
+
+        // Automatically submit the explanation
+        if (mp3Blob) {
+          await submitExplanation(mp3Blob);
+        }
       };
       mediaRecorder.start();
       setIsRecording(true);
@@ -511,11 +560,14 @@ except Exception as e:
     setAudioBlob(null);
     setRecordingTime(0);
     setIsRecording(false);
-    setIsReviewing(false);    setShowSuccessAnimation(false);
+    setIsReviewing(false);
+    setShowSuccessAnimation(false);
     setShowFailureAnimation(false);
+    setShowPassAnimation(false);
     setExplanationAttempts(0);
     clearInterval(recordingTimerRef.current);
-  };  const submitExplanation = async (audio) => {
+  };
+  const submitExplanation = async (audio) => {
     setIsReviewing(true);
     
     // Increment attempt count
@@ -545,14 +597,12 @@ except Exception as e:
       if (!res.ok) {
         throw new Error(data.error || 'API call failed');
       }      // Update only the explanationGrade field
-      if (data.grade === 'PASS') {
-        // Show success animation
-        setShowSuccessAnimation(true);
+      if (data.grade === 'PASS') {        // Show pass animation first
+        setShowPassAnimation(true);
+        setIsReviewing(false);
           // Auto-close explanation modal and load questions after animation
         setTimeout(async () => {
-          // Don't close modal yet, just hide the success animation
-          setShowSuccessAnimation(false);
-          // Close explanation modal and show questions loading
+          setShowPassAnimation(false);
           closeExplanationModal();
           
           try {
@@ -678,7 +728,6 @@ except Exception as e:
       [questionIndex]: answerIndex
     }));
   };
-
   // Function to submit questions
   const submitQuestions = async () => {
     // Check if all questions are answered
@@ -689,49 +738,84 @@ except Exception as e:
       return;
     }
 
+    // Increment attempt count
+    const newAttemptCount = questionsAttempts + 1;
+    setQuestionsAttempts(newAttemptCount);
+
     // Check if all answers are correct
     const allCorrect = questions.every((question, index) => 
       selectedAnswers[index] === question.correctAnswer
     );
 
     if (allCorrect) {
-      // Update questionsGrade to PASS
-      try {
-        const userDoc = await getDocument('Users', user.uid);
-        const currentProblemData = userDoc?.problemData?.['two-sum'] || {};
-        
-        const updatedProblemData = {
-          ...currentProblemData,
-          questionsGrade: 'PASS'
-        };
-
-        await updateDocument('Users', user.uid, {
-          problemData: {
-            ...userDoc.problemData,
-            'two-sum': updatedProblemData
-          }
-        });
-
-        // Update local state
-        setUserProblemData(updatedProblemData);
-        
-        alert('Congratulations! All answers correct! 🎉');
+      // Show pass animation first
+      setShowQuestionsPassAnimation(true);
+      
+      // Auto-close questions modal after animation
+      setTimeout(async () => {
+        setShowQuestionsPassAnimation(false);
         setShowQuestionsModal(false);
         
-      } catch (error) {
-        console.error('Error updating questions grade:', error);
-        alert('Questions completed successfully, but failed to save to database.');
-      }
+        try {
+          // Update questionsGrade to PASS
+          const userDoc = await getDocument('Users', user.uid);
+          const currentProblemData = userDoc?.problemData?.['two-sum'] || {};
+          
+          const updatedProblemData = {
+            ...currentProblemData,
+            questionsGrade: 'PASS'
+          };
+
+          await updateDocument('Users', user.uid, {
+            problemData: {
+              ...userDoc.problemData,
+              'two-sum': updatedProblemData
+            }
+          });          // Update local state
+          setUserProblemData(updatedProblemData);
+          
+
+          
+        } catch (error) {
+          console.error('Error updating questions grade:', error);
+          alert('Questions completed successfully, but failed to save to database.');
+        }
+      }, 3000);
+      
     } else {
-      alert('Some answers are incorrect. Please review and try again.');
+      // Show fail animation
+      setShowQuestionsFailAnimation(true);
+      
+      setTimeout(async () => {
+        setShowQuestionsFailAnimation(false);
+        
+        if (newAttemptCount >= 2) {
+          // Max attempts reached, close modal
+          alert('Maximum attempts reached. Please try again later.');
+          setShowQuestionsModal(false);
+          setQuestionsAttempts(0);
+          setQuestions([]);
+          setSelectedAnswers({});
+        } else {
+          // Regenerate questions for another attempt
+          try {
+            await loadQuestions();
+          } catch (error) {
+            console.error('Error regenerating questions:', error);
+            alert('Failed to load new questions. Please try again.');
+          }
+        }
+      }, 1500);
     }
   };
-
   // Function to close questions modal
   const closeQuestionsModal = () => {
     setShowQuestionsModal(false);
     setQuestions([]);
     setSelectedAnswers({});
+    setQuestionsAttempts(0);
+    setShowQuestionsPassAnimation(false);
+    setShowQuestionsFailAnimation(false);
   };
 
 
@@ -743,7 +827,7 @@ except Exception as e:
         <div className="w-full px-4">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="text-2xl font-bold text-gray-100 hover:text-orange-400">
+              <Link href="/dashboard" className="text-2xl font-bold text-gray-100 hover:text-gray-400">
                 Black Box
               </Link>
             </div>
@@ -777,18 +861,191 @@ except Exception as e:
       {/* Main Content */}
       <div className="flex-1 pt-16">
         <PanelGroup direction="horizontal">
-          {/* Problem Description Panel */}          <Panel defaultSize={40} minSize={30}>
-            <div className="h-full flex flex-col bg-gray-900 rounded-lg m-2 shadow-lg overflow-hidden">
+          {/* Problem Description Panel */}          <Panel defaultSize={40} minSize={30}>            <div className="h-full flex flex-col bg-gray-900 rounded-lg m-2 shadow-lg overflow-hidden relative">
               
               {/* Questions Loading Overlay */}
               {isLoadingQuestions && (
                 <div className="absolute inset-0 z-40 bg-gray-900 bg-opacity-90 flex items-center justify-center">
                   <div className="flex flex-col items-center space-y-4">
-                    <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-16 h-16 border-4 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                     <div className="text-gray-100 text-center">
                       <p className="text-xl font-medium">Loading Questions...</p>
                       <p className="text-sm text-gray-400 mt-1">Generating personalized questions for your solution</p>
                     </div>
+                  </div>
+                </div>
+              )}              {/* Audio Explanation Modal - overlay only over left panel */}
+              {showExplanationModal && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur bg-black bg-opacity-10">
+                  <div className={`w-full max-w-md rounded-lg p-6 mx-4 ${showFailureAnimation ? 'animate-shake' : ''}`}>
+                    {showPassAnimation ? (                      // Pass Animation
+                      <div className="text-center py-12">
+                        <div className="relative">
+                          {/* Gold Star */}
+                          <div className="animate-fade-in-up delay-100">
+                            <svg className="w-16 h-16 mx-auto text-yellow-400 mb-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          </div>
+
+                        </div>
+                      </div>
+                    ) : (
+                      // Regular Modal Content
+                      <>
+                        <p className="text-white text-center mb-6">Give a brief explanation of your solution</p>
+                        
+                        {isReviewing ? (
+                          <div className="text-center">
+                            <div className="w-10 h-10 border-4 border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                            <p className="text-white">Submitting and analyzing your explanation...</p>
+                            <p className="text-gray-400 text-sm mt-1">Please wait a moment.</p>
+                          </div>
+                        ) : (
+                          <div className="text-center">
+                            <button
+                              onClick={isRecording ? stopRecording : startRecording}
+                              className={`w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center transition-colors ${isRecording ? 'bg-red-700 hover:bg-red-800 animate-pulse' : 'bg-red-500 hover:bg-red-600'}`}
+                            >
+                              {isRecording ? (
+                                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M6 6h12v12H6z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                  <line x1="12" y1="19" x2="12" y2="23"></line>
+                                  <line x1="8" y1="23" x2="16" y2="23"></line>
+                                </svg>
+                              )}
+                            </button>
+                            {isRecording ? (
+                              <p className="text-red-400 text-sm">
+                                Recording... ({formatRecordingTime(recordingTime)} / 02:00)
+                              </p>
+                            ) : (
+                              <p className="text-gray-300 text-sm">Click icon to start recording</p>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}              {/* Questions Modal - overlay only over left panel */}              {showQuestionsModal && (
+                <div className="absolute inset-0 z-50 flex flex-col backdrop-blur bg-black bg-opacity-10">
+                  <div className={`flex-1 flex flex-col p-4 overflow-hidden ${showQuestionsFailAnimation ? 'animate-shake' : ''}`}>
+                    {showQuestionsPassAnimation ? (
+                      // Pass Animation
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center py-12">
+                          <div className="relative">
+                            {/* Gold Star */}
+                            <div className="animate-fade-in-up delay-100">
+                              <svg className="w-16 h-16 mx-auto text-yellow-400 mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : showQuestionsFailAnimation ? (
+                      // Fail Animation
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center py-12">
+                          <div className="relative">
+                            {/* Red X */}
+                            <div className="animate-fade-in-up delay-100">
+                              <svg className="w-16 h-16 mx-auto text-red-400 mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            {/* Fail Text */}
+                            <div className="animate-fade-in-up delay-200 mt-4">
+                              <p className="text-white text-lg font-medium">Some answers were incorrect</p>
+                              <p className="text-gray-400 text-sm mt-1">
+                                {questionsAttempts >= 2 ? 'Maximum attempts reached' : 'Generating new questions...'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      // Regular Modal Content
+                      <>
+                        <div className="flex justify-between items-center mb-4">
+                          <div className="flex items-center space-x-2">
+                            <h2 className="text-white text-lg font-medium">Concept Questions</h2>
+                            <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">
+                              Attempt {questionsAttempts + 1} of 2
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                          <div className="space-y-4">
+                            {questions.map((question, questionIndex) => (
+                              <div key={questionIndex} className="p-3">
+                                <h3 className="text-sm font-medium text-white mb-3">
+                                  Question {questionIndex + 1}: {question.question}
+                                </h3>
+                                <div className="space-y-2">
+                                  {question.options.map((option, optionIndex) => (
+                                    <label
+                                      key={optionIndex}
+                                      className={`flex items-center p-2 rounded cursor-pointer transition-colors duration-200 ${
+                                        selectedAnswers[questionIndex] === optionIndex
+                                          ? 'bg-gray-400/30 text-gray-300'
+                                          : 'text-white hover:bg-white/10'
+                                      }`}
+                                    >
+                                      <input
+                                        type="radio"
+                                        name={`question-${questionIndex}`}
+                                        value={optionIndex}
+                                        checked={selectedAnswers[questionIndex] === optionIndex}
+                                        onChange={() => handleAnswerSelect(questionIndex, optionIndex)}
+                                        className="sr-only"
+                                      />
+                                      <div className={`w-3 h-3 rounded-full border-2 mr-2 flex items-center justify-center ${
+                                        selectedAnswers[questionIndex] === optionIndex
+                                          ? 'border-gray-400 bg-gray-400'
+                                          : 'border-gray-400'
+                                      }`}>
+                                        {selectedAnswers[questionIndex] === optionIndex && (
+                                          <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
+                                        )}
+                                      </div>
+                                      <span className="text-xs">{option}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4 pt-3 border-t border-gray-600">
+                          <div className="flex justify-between items-center">
+                            <p className="text-xs text-gray-400">
+                              {Object.keys(selectedAnswers).length} of {questions.length} questions answered
+                            </p>
+                            <button
+                              onClick={submitQuestions}
+                              disabled={Object.keys(selectedAnswers).length !== questions.length}
+                              className={`px-4 py-1 rounded text-xs font-medium transition-colors duration-200 ${
+                                Object.keys(selectedAnswers).length === questions.length
+                                  ? 'bg-gray-500 hover:bg-gray-600 text-white'
+                                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                              }`}
+                            >
+                              Submit Answers
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -803,10 +1060,9 @@ except Exception as e:
                         ? 'text-white'
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
-                  >
-                    Description
+                  >                    Description
                     {leftActiveTab === 'description' && (
-                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full"></span>
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-400 rounded-full"></span>
                     )}
                   </button>
                   <button
@@ -816,10 +1072,9 @@ except Exception as e:
                         ? 'text-white'
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
-                  >
-                    Submissions
+                  >                    Submissions
                     {leftActiveTab === 'submissions' && (
-                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full"></span>
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-400 rounded-full"></span>
                     )}
                   </button>
                 </div>
@@ -834,7 +1089,13 @@ except Exception as e:
                           {problem.title}              
                           {renderStars()}
                         </div>
-                        <span className="text-gray-300 text-lg font-mono ml-auto bg-gray-800 px-3 py-1 rounded-md border border-gray-700">
+                        <span 
+                          className={`text-lg font-mono ml-auto px-3 py-1 rounded-md border transition-colors duration-200 ${
+                            isTimerRed 
+                              ? 'bg-red-900/30 text-red-300 border-red-500' 
+                              : 'bg-gray-800 text-gray-300 border-gray-700'
+                          }`}
+                        >
                           {formatTimer(timer)}
                         </span>
                       </h1>
@@ -970,7 +1231,7 @@ except Exception as e:
             </div>
           </Panel>
 
-          <PanelResizeHandle className="w-2 bg-gray-700/50 hover:bg-orange-500/70 transition-colors duration-200">
+          <PanelResizeHandle className="w-2 bg-gray-700/50 hover:bg-gray-600 transition-colors duration-200">
             <div className="w-full h-full flex items-center justify-center">
               <div className="w-1 h-12 rounded-full bg-gray-600/80" />
             </div>
@@ -982,7 +1243,7 @@ except Exception as e:
                 <div className="absolute inset-0 z-50 bg-black bg-opacity-70 flex flex-col items-center justify-center">
                   <div className="text-2xl text-white mb-6 font-bold">Ready to start?</div>
                   <button
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg text-lg font-semibold shadow-lg transition"
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-8 py-3 rounded-lg text-lg font-semibold shadow-lg transition"
                     onClick={() => setIsLocked(false)}
                   >
                     Start
@@ -1018,33 +1279,29 @@ except Exception as e:
                 {/* Test Cases/Output Panel */}
                 {isPanelVisible && (
                   <>
-                    <PanelResizeHandle className="h-2 bg-gray-700 hover:bg-gray-600 transition-colors duration-150">
+                    <PanelResizeHandle className="h-2 bg-gray-700/50 hover:bg-gray-600 transition-colors duration-150">
                       <div className="h-full w-full flex items-center justify-center">
                         <div className="h-0.5 w-8 bg-gray-600" />
                       </div>
-                    </PanelResizeHandle>
-
-                    <Panel defaultSize={30} minSize={20}>
-                      <div className="h-full flex flex-col bg-gray-800">
+                    </PanelResizeHandle>                    <Panel defaultSize={30} minSize={20}>
+                      <div className="h-full flex flex-col bg-gray-900 rounded-lg m-2 shadow-lg overflow-hidden">
                         {/* Tab Buttons */}
                         <div className="flex border-b border-gray-700">
                           <button
-                            onClick={() => !isLocked && setActiveTab('testcases')}
-                            className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
+                            onClick={() => !isLocked && setActiveTab('testcases')}                            className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
                               activeTab === 'testcases'
-                                ? 'text-orange-400 border-b-2 border-orange-400'
-                                : 'text-gray-400 hover:text-orange-300'
+                                ? 'text-gray-400 border-b-2 border-gray-400'
+                                : 'text-gray-400 hover:text-gray-300'
                             } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                             disabled={isLocked}
                           >
                             Test Cases
                           </button>
                           <button
-                            onClick={() => !isLocked && setActiveTab('output')}
-                            className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
+                            onClick={() => !isLocked && setActiveTab('output')}                            className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
                               activeTab === 'output'
-                                ? 'text-orange-400 border-b-2 border-orange-400'
-                                : 'text-gray-400 hover:text-orange-300'
+                                ? 'text-gray-400 border-b-2 border-gray-400'
+                                : 'text-gray-400 hover:text-gray-300'
                             } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                             disabled={isLocked}
                           >
@@ -1125,16 +1382,14 @@ except Exception as e:
                     </Panel>
                   </>
                 )}
-              </PanelGroup>
-
-              {/* Controls Bar - Always visible at bottom */}
-              <div className="bg-gray-800 border-t border-gray-700">
+              </PanelGroup>              {/* Controls Bar - Always visible at bottom */}
+              <div className="bg-gray-900 rounded-lg m-2 shadow-lg border-t border-gray-700">
                 <div className="flex items-center px-2 h-12">
                   {/* Toggle Button */}
                   <div className="flex items-center">
                     <button
                       onClick={() => !isLocked && setIsPanelVisible(!isPanelVisible)}
-                      className={`p-2 text-gray-400 hover:text-orange-400 transition-colors duration-150 flex items-center gap-2 ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`p-2 text-gray-400 hover:text-gray-300 transition-colors duration-150 flex items-center gap-2 ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                       disabled={isLocked}
                     >
                       {isPanelVisible ? (
@@ -1151,9 +1406,8 @@ except Exception as e:
                   </div>
 
                   {/* Run/Submit Buttons */}
-                  <div className="ml-auto flex space-x-2">
-                    <button
-                      className="bg-transparent border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white px-4 py-1.5 rounded transition-colors duration-150 font-semibold text-sm shadow-sm"
+                  <div className="ml-auto flex space-x-2">                    <button
+                      className="bg-transparent border border-gray-400 text-gray-400 hover:bg-gray-400 hover:text-white px-4 py-1.5 rounded transition-colors duration-150 font-semibold text-sm shadow-sm"
                       type="button"
                       onClick={isLocked ? undefined : handleRun}
                       disabled={isLocked || isRunning}
@@ -1172,9 +1426,8 @@ except Exception as e:
                 </div>
               </div>
             </div>
-          </Panel>
-        </PanelGroup>
+          </Panel>        </PanelGroup>
       </div>
     </div>
-  );
+  )
 }

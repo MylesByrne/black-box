@@ -49,7 +49,7 @@ export default function Signup() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16">
             <div className="flex-shrink-0">
-              <Link href="/" className="text-2xl font-bold text-gray-800 hover:text-orange-700">
+              <Link href="/" className="text-2xl font-bold text-gray-800 hover:text-gray-600">
                 Black Box
               </Link>
             </div>
@@ -73,14 +73,13 @@ export default function Signup() {
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                   Email address
                 </label>
-                <div className="mt-1">
-                  <input
+                <div className="mt-1">                  <input
                     id="email"
                     name="email"
                     type="email"
                     autoComplete="email"
                     required
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-400 focus:border-gray-400"
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
@@ -91,13 +90,12 @@ export default function Signup() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                   Password
                 </label>
-                <div className="mt-1">
-                  <input
+                <div className="mt-1">                  <input
                     id="password"
                     name="password"
                     type="password"
                     required
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-400 focus:border-gray-400"
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   />
                 </div>
@@ -108,13 +106,12 @@ export default function Signup() {
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                   Confirm Password
                 </label>
-                <div className="mt-1">
-                  <input
+                <div className="mt-1">                  <input
                     id="confirmPassword"
                     name="confirmPassword"
                     type="password"
                     required
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-400 focus:border-gray-400"
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   />
                 </div>
@@ -131,7 +128,7 @@ export default function Signup() {
               <div>
                 <button
                   type="submit"
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-700 hover:bg-orange-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
                 >
                   Sign up
                 </button>
@@ -141,7 +138,7 @@ export default function Signup() {
             {/* Login Link */}
             <div className="mt-6">
               <div className="text-center">
-                <Link href="/login" className="text-orange-700 hover:text-orange-800">
+                <Link href="/login" className="text-gray-600 hover:text-gray-700">
                   Already have an account? Sign in
                 </Link>
               </div>

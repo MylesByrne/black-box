@@ -20,7 +20,7 @@ export async function POST(request) {
 
     // Use JSON for chat completions API
     const requestBody = {
-      model: 'gpt-4',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: "system",

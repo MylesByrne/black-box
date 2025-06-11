@@ -50,7 +50,7 @@ export default function Home() {
                 </Link>
                 <Link
                   href="/signup"
-                  className="bg-orange-700 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-800"
+                  className="bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700"
                 >
                   Sign Up
                 </Link>
@@ -68,7 +68,7 @@ export default function Home() {
                   <div className="text-center lg:text-left">
                     <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
                       <span className="block">Welcome to</span>
-                      <span className="block text-orange-700">
+                      <span className="block text-gray-600">
                         <TypeWriter text="Black Box" delay={75} />
                       </span>
                     </h1>
@@ -79,7 +79,7 @@ export default function Home() {
                       <div className="rounded-md shadow">
                         <a
                           href="#"
-                          className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-700 hover:bg-orange-800 md:py-4 md:text-lg md:px-10"
+                          className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 md:py-4 md:text-lg md:px-10"
                         >
                           Get started
                         </a>
@@ -87,7 +87,7 @@ export default function Home() {
                       <div className="mt-3 sm:mt-0 sm:ml-3">
                         <a
                           href="#"
-                          className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-orange-700 bg-gray-200 hover:bg-gray-300 md:py-4 md:text-lg md:px-10"
+                          className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 md:py-4 md:text-lg md:px-10"
                         >
                           Learn more
                         </a>
