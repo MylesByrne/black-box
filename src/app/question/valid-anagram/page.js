@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useFirestore } from '@/context/FirestoreContext';
-import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { submitCode } from '@/utils/judge0';
@@ -9,20 +8,44 @@ import { transcribeAudio } from '@/utils/openAI';
 import Header from '@/components/Header';
 import ProblemDescriptionPanel from '@/components/ProblemDescriptionPanel';
 import CodeEditorPanel from '@/components/CodeEditorPanel';
+import { useProblem } from '@/hooks/useProblem';
+import { useQuestions } from '@/hooks/useQuestions';
 
 export default function ProblemPage() {
   const problemId = "valid-anagram"; // Hardcoded
-  const [problem, setProblem] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  
+  // Use the custom hooks
+  const {
+    problem,
+    loading,
+    error,
+    testCases,
+    submissions,
+    setSubmissions,
+    userProblemData,
+    setUserProblemData,
+    explanationAttempts,
+    setExplanationAttempts
+  } = useProblem(problemId);
+
+  const {
+    questions,
+    selectedAnswers,
+    isLoadingQuestions,
+    showQuestionsModal,
+    loadQuestions,
+    handleAnswerSelect,
+    resetQuestions,
+    closeQuestionsModal,
+  } = useQuestions();
+
   const [userCode, setUserCode] = useState('');
-  const [testCases, setTestCases] = useState([]);
   const [activeTab, setActiveTab] = useState('testcases'); 
-  const [isPanelVisible, setIsPanelVisible] = useState(false);  const [isRunning, setIsRunning] = useState(false);
+  const [isPanelVisible, setIsPanelVisible] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState(null);
   const [isLocked, setIsLocked] = useState(true);
   const [timer, setTimer] = useState(0); 
-  const [submissions, setSubmissions] = useState([]);
   const [showExplanationModal, setShowExplanationModal] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
@@ -31,15 +54,14 @@ export default function ProblemPage() {
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingTimerRef = useRef(null);
   const timerRef = useRef(null);
-  const { getDocument, addDocument, setDocument, updateDocument } = useFirestore();  const { user } = useAuth();  const [explanation, setExplanation] = useState('');
+  const { getDocument, addDocument, setDocument, updateDocument } = useFirestore();
+  const { user } = useAuth();
+  const [explanation, setExplanation] = useState('');
   const [isReviewing, setIsReviewing] = useState(false);
-  const [userProblemData, setUserProblemData] = useState(null);  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
-  const [showFailureAnimation, setShowFailureAnimation] = useState(false);  const [explanationAttempts, setExplanationAttempts] = useState(0);
-  const [showQuestionsModal, setShowQuestionsModal] = useState(false);
-  const [questions, setQuestions] = useState([]);
-  const [selectedAnswers, setSelectedAnswers] = useState({});
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
-  const [isTimerRed, setIsTimerRed] = useState(false);  const [isTimerFlashing, setIsTimerFlashing] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [showFailureAnimation, setShowFailureAnimation] = useState(false);
+  const [isTimerRed, setIsTimerRed] = useState(false);
+  const [isTimerFlashing, setIsTimerFlashing] = useState(false);
   const flashCountRef = useRef(0);
 
   // State for explanation pass animation
@@ -54,26 +76,6 @@ export default function ProblemPage() {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
-  };
-
-  const editorOptions = {
-    minimap: { enabled: false },
-    fontSize: 14,
-    theme: 'vs-dark',
-    automaticLayout: true,
-    padding: { top: 16, bottom: 16 },
-    scrollBeyondLastLine: false,
-    lineNumbers: 'on',
-    roundedSelection: true,
-    occurrencesHighlight: true,
-    cursorBlinking: 'blink',
-    tabSize: 2,
-    scrollbar: {
-      useShadows: false,
-      verticalScrollbarSize: 8,
-      horizontalScrollbarSize: 8,
-      alwaysConsumeMouseWheel: true  
-    }
   };
 
   // Set timer based on difficulty when problem loads   
@@ -131,76 +133,6 @@ export default function ProblemPage() {
     return `${m}:${s}`;
   };
 
-  useEffect(() => {
-    const fetchProblemAndTestCases = async () => {
-      try {
-        if (!problemId) {
-          setError('No problem ID provided');
-          setLoading(false);
-          return;
-        }
-        // Fetch problem data
-        const problemData = await getDocument('Problems', problemId);
-        setProblem(problemData || null);
-        if (!problemData) {
-          setError('Problem not found in database');
-          return;
-        }
-        const userDoc = await getDocument('Users', `${user.uid}`);
-        if (!userDoc.problemData[problemId]) {
-          // If user hasn't attempted this problem, create a new document
-          await updateDocument(`Users`, `${user.uid}`, {
-            problemData: {
-              ...userDoc.problemData,
-              [problemId]: {
-                submissions: {},
-                explanationGrade: null,
-                questionsGrade: null,
-              }
-            }
-          })
-        } else {
-          // Load existing submissions from Firestore
-          const problemData = userDoc.problemData[problemId];
-          setUserProblemData(problemData); // Set the user problem data
-          // Load explanation attempts count
-          setExplanationAttempts(problemData.explanationAttempts || 0);
-          if (problemData.submissions) {
-            // Convert submissions object to array and sort by timestamp (newest first)
-            const submissionsArray = Object.entries(problemData.submissions)
-              .map(([timestamp, submission]) => ({
-                ...submission,
-                timestamp: submission.timestamp || new Date(parseInt(timestamp)).toISOString()
-              }))
-              .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            setSubmissions(submissionsArray);
-          }
-        }
-        // Fetch test cases
-        const testCasesData = problemData.testCases;
-        if (testCasesData) {
-//
-//
-//
-//
-//
-          const testCasesArray = Object.entries(testCasesData).map(([id, data]) => ({
-            id,
-            s: data.s,
-            t: data.t,
-            expected: data.expected
-          }));
-          setTestCases(testCasesArray);
-        }
-      } catch (error) {
-        setError(`Error loading problem: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProblemAndTestCases();
-  }, [getDocument, user?.uid, problemId]);
   
                
   if (loading) {
@@ -399,7 +331,12 @@ except Exception as e:
           setShowExplanationModal(true);
         } else if (!hasPassedQuestions) {
           // If explanation is already passed but questions are not, go directly to questions
-          await loadQuestions();
+          try {
+            await loadQuestions(userCode, problem.title);
+          } catch (error) {
+            console.error('Error loading questions:', error);
+            alert('Failed to load questions. Please try again.');
+          }
         }
       }
 
@@ -549,18 +486,22 @@ except Exception as e:
 
       if (!res.ok) {
         throw new Error(data.error || 'API call failed');
-      }      // Update only the explanationGrade field
-      if (data.grade === 'PASS') {        // Show pass animation first
+      }      
+
+      // Update only the explanationGrade field
+      if (data.grade === 'PASS') {        
+        // Show pass animation first
         setShowPassAnimation(true);
         setIsReviewing(false);
-          // Auto-close explanation modal and load questions after animation
+          
+        // Auto-close explanation modal and load questions after animation
         setTimeout(async () => {
           setShowPassAnimation(false);
           closeExplanationModal();
           
           try {
-            // Load questions 
-            await loadQuestions();
+            // Load questions using the custom hook
+            await loadQuestions(userCode, problem.title);
           } catch (error) {
             console.error('Error loading questions:', error);
             alert('Failed to load questions. Please try again.');
@@ -571,13 +512,15 @@ except Exception as e:
           // Get current user document
           const userDoc = await getDocument('Users', user.uid);
           const currentProblemData = userDoc?.problemData?.[problemId] || {};
-            // Update only the explanationGrade field, preserving all other data
+            
+          // Update only the explanationGrade field, preserving all other data
           const updatedProblemData = {
             ...currentProblemData,
             explanationGrade: 'PASS',
             explanationAttempts: newAttemptCount
           };
-            await updateDocument('Users', user.uid, {
+            
+          await updateDocument('Users', user.uid, {
             problemData: {
               ...userDoc.problemData,
               [problemId]: updatedProblemData
@@ -591,7 +534,8 @@ except Exception as e:
         } catch (updateError) {
           console.error('Error updating explanation grade:', updateError);
           alert('Explanation graded as PASS, but failed to save to database.');
-        }} else {
+        }
+      } else {
         // If explanation didn't pass, show failure animation
         setShowFailureAnimation(true);
         
@@ -634,7 +578,9 @@ except Exception as e:
           }
         }, 3000);
         
-        setIsReviewing(false);      }} catch (err) {
+        setIsReviewing(false);      
+      }
+    } catch (err) {
       console.error('Error:', err);
       alert(`Error: ${err.message}`);
       setIsReviewing(false);
@@ -642,44 +588,6 @@ except Exception as e:
     }
   };
 
-  // Function to load questions from the API
- const loadQuestions = async () => {
-    setIsLoadingQuestions(true);
-    try {
-      const response = await fetch('/api/openai/generateQuestions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },        body: JSON.stringify({
-          code: userCode.trim(),
-          problemTitle: problem.title || 'Problem'
-        })
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate questions');
-      }
-
-      setQuestions(data.questions);
-      setSelectedAnswers({});
-      setShowQuestionsModal(true);
-    } catch (error) {
-      console.error('Error loading questions:', error);
-      alert('Failed to load questions. Please try again.');
-    } finally {
-      setIsLoadingQuestions(false);
-    }
-  };
-
-  // Function to handle answer selection
-  const handleAnswerSelect = (questionIndex, answerIndex) => {
-    setSelectedAnswers(prev => ({
-      ...prev,
-      [questionIndex]: answerIndex
-    }));
-  };
   // Function to submit questions
   const submitQuestions = async () => {
     // Check if all questions are answered
@@ -706,7 +614,7 @@ except Exception as e:
       // Auto-close questions modal after animation
       setTimeout(async () => {
         setShowQuestionsPassAnimation(false);
-        setShowQuestionsModal(false);
+        closeQuestionsModal();
         
         try {
           // Update questionsGrade to PASS
@@ -723,10 +631,10 @@ except Exception as e:
               ...userDoc.problemData,
               [problemId]: updatedProblemData
             }
-          });          // Update local state
-          setUserProblemData(updatedProblemData);
+          });          
           
-
+          // Update local state
+          setUserProblemData(updatedProblemData);
           
         } catch (error) {
           console.error('Error updating questions grade:', error);
@@ -744,14 +652,11 @@ except Exception as e:
         if (newAttemptCount >= 2) {
           // Max attempts reached, close modal
           alert('Maximum attempts reached. Please try again later.');
-          setShowQuestionsModal(false);
-          setQuestionsAttempts(0);
-          setQuestions([]);
-          setSelectedAnswers({});
+          resetQuestions();
         } else {
           // Regenerate questions for another attempt
           try {
-            await loadQuestions();
+            await loadQuestions(userCode, problem.title);
           } catch (error) {
             console.error('Error regenerating questions:', error);
             alert('Failed to load new questions. Please try again.');

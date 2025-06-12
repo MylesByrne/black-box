@@ -119,80 +119,118 @@ export default function CodeEditorPanel({
                 </div>
 
                 {/* Tab Content */}
-                <div className="flex-1 overflow-y-auto p-4">
-                  {isLocked ? (
-                    <div className="text-gray-400 text-center mt-8">Unlock to view content</div>
-                  ) : (
-                    <>
-                      {activeTab === 'testcases' && (
-                        <div className="space-y-4">
-                          {testCases.slice(0,3).map((testCase) => (
-                            <div
-                              key={testCase.id}
-                              className="p-3 bg-gray-900 rounded-lg text-sm text-gray-300"
-                            >
-                              <div className="mb-1">
-                                <span className="text-gray-400">Input:</span> s = {testCase.s}, t = {testCase.t}
+                                <div className="flex-1 overflow-y-auto p-4">
+                                  {isLocked ? (
+                                    <div className="text-gray-400 text-center mt-8">Unlock to view content</div>
+                                  ) : (
+                                    <>
+                                      {activeTab === 'testcases' && (
+                                        <div className="space-y-4">
+                                          {testCases.slice(0,3).map((testCase) => (
+                                            <div
+                                              key={testCase.id}
+                                              className="p-3 bg-gray-900 rounded-lg text-sm text-gray-300"
+                                            >
+                                              <div className="mb-1">
+                                                <span className="text-gray-400">Input: </span> 
+                                                {problem.testCaseArgsJs.map((arg, index) => {
+                                                  let displayValue;
+                                                  const value = testCase[arg];
+                                                  
+                                                  if (Array.isArray(value)) {
+                                                    displayValue = `[${value.join(', ')}]`;
+                                                  } else if (typeof value === 'boolean') {
+                                                    displayValue = value.toString();
+                                                  } else if (typeof value === 'string') {
+                                                    displayValue = `"${value}"`;
+                                                  } else {
+                                                    displayValue = JSON.stringify(value);
+                                                  }
+
+                                                  return (
+                                                    <span key={index}>
+                                                      {index > 0 && ', '}
+                                                      {arg} = {displayValue}
+                                                    </span>
+                                                  );
+                                                })}
+                                              </div>
+                                              <div>
+                                                <span className="text-gray-400">Expected:</span> {
+                                                  (() => {
+                                                    const expected = testCase.expected;
+                                                    if (expected instanceof Map) {
+                                                      return `[${Array.from(expected.values()).join(', ')}]`;
+                                                    } else if (Array.isArray(expected)) {
+                                                      return `[${expected.join(', ')}]`;
+                                                    } else if (typeof expected === 'boolean') {
+                                                      return expected.toString();
+                                                    } else if (typeof expected === 'string') {
+                                                      return `"${expected}"`;
+                                                    } else if (typeof expected === 'object' && expected !== null) {
+                                                      return JSON.stringify(expected);
+                                                    } else {
+                                                      return expected;
+                                                    }
+                                                  })()
+                                                }
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {activeTab === 'output' && (
+                                        <div className="font-mono text-sm text-gray-300">
+                                          {isRunning ? (
+                                            <div className="text-gray-400">Running code...</div>
+                                          ) : !output ? (
+                                            <div className="text-gray-400">Run code to see output</div>
+                                          ) : (
+                                            <div className="space-y-4">
+                                              {output.status.description && (
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-gray-400">Status:</span>
+                                                  <span className={output.status.description === 'Accepted' ? 'text-green-400' : 'text-red-400'}>
+                                                    {output.status.description}
+                                                  </span>
+                                                </div>
+                                              )}
+                                              {output.stdout && (
+                                                <div>
+                                                  <div className="text-gray-400 mb-1">Output:</div>
+                                                  <pre className="whitespace-pre-wrap bg-gray-900 p-3 rounded-lg">
+                                                    {output.stdout}
+                                                  </pre>
+                                                </div>
+                                              )}
+                                              {output.stderr && (
+                                                <div>
+                                                  <div className="text-red-400 mb-1">Error:</div>
+                                                  <pre className="whitespace-pre-wrap bg-gray-900 p-3 rounded-lg text-red-400">
+                                                    {output.stderr}
+                                                  </pre>
+                                                </div>
+                                              )}
+                                              {(output.time || output.memory) && (
+                                                <div className="text-gray-400 text-xs">
+                                                  {output.time && <span>Time: {output.time}s </span>}
+                                                  {output.memory && <span>Memory: {output.memory}KB</span>}
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
                               </div>
-                              <div>
-                                <span className="text-gray-400">Expected:</span> [{testCase.expected}]
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {activeTab === 'output' && (
-                        <div className="font-mono text-sm text-gray-300">
-                          {isRunning ? (
-                            <div className="text-gray-400">Running code...</div>
-                          ) : !output ? (
-                            <div className="text-gray-400">Run code to see output</div>
-                          ) : (
-                            <div className="space-y-4">
-                              {output.status.description && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-gray-400">Status:</span>
-                                  <span className={output.status.description === 'Accepted' ? 'text-green-400' : 'text-red-400'}>
-                                    {output.status.description}
-                                  </span>
-                                </div>
-                              )}
-                              {output.stdout && (
-                                <div>
-                                  <div className="text-gray-400 mb-1">Output:</div>
-                                  <pre className="whitespace-pre-wrap bg-gray-900 p-3 rounded-lg">
-                                    {output.stdout}
-                                  </pre>
-                                </div>
-                              )}
-                              {output.stderr && (
-                                <div>
-                                  <div className="text-red-400 mb-1">Error:</div>
-                                  <pre className="whitespace-pre-wrap bg-gray-900 p-3 rounded-lg text-red-400">
-                                    {output.stderr}
-                                  </pre>
-                                </div>
-                              )}
-                              {(output.time || output.memory) && (
-                                <div className="text-gray-400 text-xs">
-                                  {output.time && <span>Time: {output.time}s </span>}
-                                  {output.memory && <span>Memory: {output.memory}KB</span>}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </Panel>
-          </>
-        )}
-      </PanelGroup>
-      
-      {/* Controls Bar - Always visible at bottom */}
+                            </Panel>
+                          </>
+                        )}
+                      </PanelGroup>
+                      
+                      {/* Controls Bar - Always visible at bottom */}
       <div className="bg-gray-900 rounded-lg m-2 shadow-lg border-t border-gray-700">
         <div className="flex items-center px-2 h-12">
           {/* Toggle Button */}
