@@ -73,11 +73,24 @@ export const useProblem = (problemId) => {
             id
           };
           
+          // Helper function to convert nested maps to nested arrays
+          const convertNestedMapsToArrays = (value) => {
+            if (Array.isArray(value)) {
+              // If it's already an array, recursively convert its elements
+              return value.map(convertNestedMapsToArrays);
+            } else if (typeof value === 'object' && value !== null) {
+              // If it's an object, convert to array and recursively convert nested objects
+              return Object.values(value).map(convertNestedMapsToArrays);
+            } else {
+              // For primitive values, return as is
+              return value;
+            }
+          };
+          
           // Handle expected field with different data structures
           if (data.expected !== undefined) {
             if (typeof data.expected === 'object' && data.expected !== null) {
-              // If it's an object, convert to array of values or keep as is
-              testCase.expected = Array.isArray(data.expected) ? data.expected : Object.values(data.expected);
+              testCase.expected = convertNestedMapsToArrays(data.expected);
             } else {
               // For primitive values, assign directly
               testCase.expected = data.expected;
@@ -90,8 +103,7 @@ export const useProblem = (problemId) => {
               if (data[arg] !== undefined) {
                 // Handle different data structures
                 if (typeof data[arg] === 'object' && data[arg] !== null) {
-                  // If it's an object, convert to array of values or keep as is
-                  testCase[arg] = Array.isArray(data[arg]) ? data[arg] : Object.values(data[arg]);
+                  testCase[arg] = convertNestedMapsToArrays(data[arg]);
                 } else {
                   // For primitive values, assign directly
                   testCase[arg] = data[arg];

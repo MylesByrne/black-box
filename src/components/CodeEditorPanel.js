@@ -137,8 +137,31 @@ export default function CodeEditorPanel({
                                                   let displayValue;
                                                   const value = testCase[arg];
                                                   
+                                                  // Helper function to format nested arrays
+                                                  const formatNestedArray = (arr) => {
+                                                    if (!Array.isArray(arr)) {
+                                                      if (typeof arr === 'string') {
+                                                        return `"${arr}"`;
+                                                      } else if (typeof arr === 'boolean') {
+                                                        return arr.toString();
+                                                      }
+                                                      return arr;
+                                                    }
+                                                
+                                                    return `[${arr.map(item => {
+                                                      if (Array.isArray(item)) {
+                                                        return formatNestedArray(item);
+                                                      } else if (typeof item === 'string') {
+                                                        return `"${item}"`;
+                                                      } else if (typeof item === 'boolean') {
+                                                        return item.toString();
+                                                      }
+                                                      return item;
+                                                    }).join(', ')}]`;
+                                                  };
+                                                
                                                   if (Array.isArray(value)) {
-                                                    displayValue = `[${value.join(', ')}]`;
+                                                    displayValue = formatNestedArray(value);
                                                   } else if (typeof value === 'boolean') {
                                                     displayValue = value.toString();
                                                   } else if (typeof value === 'string') {
@@ -159,10 +182,34 @@ export default function CodeEditorPanel({
                                                 <span className="text-gray-400">Expected:</span> {
                                                   (() => {
                                                     const expected = testCase.expected;
+                                                
+                                                    // Helper function to format nested arrays for expected output
+                                                    const formatNestedArray = (arr) => {
+                                                      if (!Array.isArray(arr)) {
+                                                        if (typeof arr === 'string') {
+                                                          return `"${arr}"`;
+                                                        } else if (typeof arr === 'boolean') {
+                                                          return arr.toString();
+                                                        }
+                                                        return arr;
+                                                      }
+                                                
+                                                      return `[${arr.map(item => {
+                                                        if (Array.isArray(item)) {
+                                                          return formatNestedArray(item);
+                                                        } else if (typeof item === 'string') {
+                                                          return `"${item}"`;
+                                                        } else if (typeof item === 'boolean') {
+                                                          return item.toString();
+                                                        }
+                                                        return item;
+                                                      }).join(', ')}]`;
+                                                    };
+                                                
                                                     if (expected instanceof Map) {
                                                       return `[${Array.from(expected.values()).join(', ')}]`;
                                                     } else if (Array.isArray(expected)) {
-                                                      return `[${expected.join(', ')}]`;
+                                                      return formatNestedArray(expected);
                                                     } else if (typeof expected === 'boolean') {
                                                       return expected.toString();
                                                     } else if (typeof expected === 'string') {
