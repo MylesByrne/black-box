@@ -22,9 +22,4 @@ try {
   console.error('Error enabling offline persistence:', err);
 }
 
-// Debug initialization
-console.log('Firebase Project ID:', process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
-console.log('Firestore instance:', db ? 'Initialized' : 'Failed');
-
-
 export { auth, db };
