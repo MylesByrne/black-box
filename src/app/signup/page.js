@@ -3,8 +3,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useFirestore } from '@/context/FirestoreContext';
+
 
 export default function Signup() {
+  const { setDocument } = useFirestore();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -35,7 +38,20 @@ export default function Signup() {
     }
 
     try {
-      await signup(formData.email, formData.password);
+      // The signup function should return the user credential
+      const userCredential = await signup(formData.email, formData.password);
+      
+      // Use the user from the credential instead of the context
+      const newUser = userCredential.user;
+      
+      // Create user document in Firestore
+      await setDocument('Users', newUser.uid, {
+        email: formData.email,
+        problemData: {},
+        'total-stars': 0,
+        createdAt: new Date(),
+      });
+
       router.push('/dashboard'); // Redirect to dashboard after successful signup
     } catch (err) {
       setError('Failed to create an account. ' + err.message);
