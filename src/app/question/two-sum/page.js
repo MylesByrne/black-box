@@ -173,7 +173,7 @@ def check_solution():
       if result == testCase['expected']:
         continue
       else:
-        print(f"Test case {i+1}: Failed | Input: ${problem.testCaseInputFormat} | Expected: {testCase['expected']}, Got: {result}")
+        print(f"Test case {i+1}: Failed | Input: ${problem.testCaseInputFormat || "nums={testCase['nums']}, target={testCase['target']}"} | Expected: {testCase['expected']}, Got: {result}")
         return
   print("SUBMISSION_RESULT: Accepted")
         
@@ -302,13 +302,25 @@ except Exception as e:
                (response.time && parseFloat(response.time) < parseFloat(currentProblemData.bestSubmission.runtime.replace('s', ''))))) {
             updatedProblemData.bestSubmission = newSubmission;
           }
-            // Update the user document with the new problem data
-          await updateDocument('Users', user.uid, {
+          
+          // Check if this is the first time solving this problem
+          const isFirstTimeSolving = submissionStatus === 'Accepted' && !currentProblemData.solved;
+          
+          // Prepare user document update
+          const userUpdateData = {
             problemData: {
               ...userDoc.problemData,
               [problemId]: updatedProblemData
             }
-          });
+          };
+          
+          // If first time solving, increment total-stars
+          if (isFirstTimeSolving) {
+            userUpdateData['total-stars'] = (userDoc['total-stars'] || 0) + 1;
+          }
+            
+          // Update the user document with the new problem data and potentially total-stars
+          await updateDocument('Users', user.uid, userUpdateData);
           
           // Update local state to reflect the changes
           setUserProblemData(updatedProblemData);
@@ -317,7 +329,9 @@ except Exception as e:
           
         } catch (firestoreError) {
           console.error('Error saving submission to Firestore:', firestoreError);        }
-      }        // Show explanation modal if accepted and user hasn't already passed explanation
+      }        
+      
+      // Show explanation modal if accepted and user hasn't already passed explanation
       if (submissionStatus === 'Accepted') {
         // Stop the timer when submission is accepted
         clearInterval(timerRef.current);
@@ -512,6 +526,9 @@ except Exception as e:
           // Get current user document
           const userDoc = await getDocument('Users', user.uid);
           const currentProblemData = userDoc?.problemData?.[problemId] || {};
+          
+          // Check if this is the first time passing explanation
+          const isFirstTimePassingExplanation = currentProblemData.explanationGrade !== 'PASS';
             
           // Update only the explanationGrade field, preserving all other data
           const updatedProblemData = {
@@ -519,13 +536,21 @@ except Exception as e:
             explanationGrade: 'PASS',
             explanationAttempts: newAttemptCount
           };
-            
-          await updateDocument('Users', user.uid, {
+          
+          // Prepare user document update
+          const userUpdateData = {
             problemData: {
               ...userDoc.problemData,
               [problemId]: updatedProblemData
             }
-          });
+          };
+          
+          // If first time passing explanation, increment total-stars
+          if (isFirstTimePassingExplanation) {
+            userUpdateData['total-stars'] = (userDoc['total-stars'] || 0) + 1;
+          }
+            
+          await updateDocument('Users', user.uid, userUpdateData);
           
           // Update local state to reflect the changes
           setUserProblemData(updatedProblemData);
@@ -589,7 +614,7 @@ except Exception as e:
   };
 
   // Function to submit questions
-  const submitQuestions = async () => {
+  {/**/}const submitQuestions = async () => {
     // Check if all questions are answered
     const allAnswered = questions.every((_, index) => selectedAnswers[index] !== undefined);
     
@@ -621,17 +646,28 @@ except Exception as e:
           const userDoc = await getDocument('Users', user.uid);
           const currentProblemData = userDoc?.problemData?.[problemId] || {};
           
+          // Check if this is the first time passing questions
+          const isFirstTimePassingQuestions = currentProblemData.questionsGrade !== 'PASS';
+          
           const updatedProblemData = {
             ...currentProblemData,
             questionsGrade: 'PASS'
           };
 
-          await updateDocument('Users', user.uid, {
+          // Prepare user document update
+          const userUpdateData = {
             problemData: {
               ...userDoc.problemData,
               [problemId]: updatedProblemData
             }
-          });          
+          };
+          
+          // If first time passing questions, increment total-stars
+          if (isFirstTimePassingQuestions) {
+            userUpdateData['total-stars'] = (userDoc['total-stars'] || 0) + 1;
+          }
+
+          await updateDocument('Users', user.uid, userUpdateData);          
           
           // Update local state
           setUserProblemData(updatedProblemData);
@@ -652,15 +688,21 @@ except Exception as e:
         if (newAttemptCount >= 2) {
           // Max attempts reached, close modal
           alert('Maximum attempts reached. Please try again later.');
+          closeQuestionsModal();
           resetQuestions();
         } else {
-          // Regenerate questions for another attempt
-          try {
-            await loadQuestions(userCode, problem.title);
-          } catch (error) {
-            console.error('Error regenerating questions:', error);
-            alert('Failed to load new questions. Please try again.');
-          }
+          // Close the modal first, then regenerate questions
+          closeQuestionsModal();
+          
+          // Give a small delay to ensure modal is closed
+          setTimeout(async () => {
+            try {
+              await loadQuestions(userCode, problem.title);
+            } catch (error) {
+              console.error('Error regenerating questions:', error);
+              alert('Failed to load new questions. Please try again.');
+            }
+          }, 100);
         }
       }, 1500);
     }

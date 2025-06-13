@@ -44,18 +44,6 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-gray-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16">
-            <div className="flex-shrink-0">
-              <Link href="/" className="text-2xl font-bold text-gray-800 hover:text-gray-600">
-                Black Box
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Signup Form */}
       <div className="flex flex-col justify-center py-12 sm:px-6 lg:px-8">
