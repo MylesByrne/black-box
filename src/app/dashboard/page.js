@@ -183,7 +183,7 @@ export default function Dashboard() {
   // State for real data
   const [userTotalStars, setUserTotalStars] = useState(0);
   const [firestoreQuestionStars, setFirestoreQuestionStars] = useState({});
-  const [loadingStars, setLoadingStars] = useState(true);// Mapping of question names to problem IDs for tier 1 (Arrays & Hashing) and tier 2 (Two Pointers)
+  const [loadingStars, setLoadingStars] = useState(true);  // Mapping of question names to problem IDs for tier 1 (Arrays & Hashing), tier 2 (Two Pointers), and Stack questions
   const questionToProblemId = {
     // Tier 1: Arrays & Hashing
     'Contains Duplicate': 'contains-duplicate',
@@ -200,7 +200,100 @@ export default function Dashboard() {
     'Two Sum II - Input Array Sorted': 'two-sum-ii',
     '3Sum': '3sum',
     'Container With Most Water': 'container-with-most-water',
-    'Trapping Rain Water': 'trapping-rain-water'
+    'Trapping Rain Water': 'trapping-rain-water',
+    // Stack Questions
+    'Valid Parentheses': 'valid-parentheses',
+    'Min Stack': 'min-stack',
+    'Evaluate Reverse Polish Notation': 'evaluate-reverse-polish-notation',
+    'Generate Parentheses': 'generate-parentheses',
+    'Daily Temperatures': 'daily-temperatures',
+    'Car Fleet': 'car-fleet',
+    'Largest Rectangle in Histogram': 'largest-rectangle-in-histogram'
+  };
+
+  // Mapping of question names to their difficulties
+  const questionDifficulties = {
+    // Arrays & Hashing
+    'Contains Duplicate': 'Easy',
+    'Valid Anagram': 'Easy',
+    'Two Sum': 'Easy',
+    'Group Anagrams': 'Medium',
+    'Top K Frequent Elements': 'Medium',
+    'Product of Array Except Self': 'Medium',
+    'Valid Sudoku': 'Medium',
+    'Encode and Decode Strings': 'Medium',
+    'Longest Consecutive Sequence': 'Medium',
+    // Two Pointers
+    'Valid Palindrome': 'Easy',
+    'Two Sum II - Input Array Sorted': 'Medium',
+    '3Sum': 'Medium',
+    'Container With Most Water': 'Medium',
+    'Trapping Rain Water': 'Hard',
+    // Stack
+    'Valid Parentheses': 'Easy',
+    'Min Stack': 'Medium',
+    'Evaluate Reverse Polish Notation': 'Medium',
+    'Generate Parentheses': 'Medium',
+    'Daily Temperatures': 'Medium',
+    'Car Fleet': 'Medium',
+    'Largest Rectangle in Histogram': 'Hard',
+    // Sliding Window
+    'Best Time to Buy and Sell Stock': 'Easy',
+    'Longest Substring Without Repeating Characters': 'Medium',
+    'Longest Repeating Character Replacement': 'Medium',
+    'Permutation in String': 'Medium',
+    'Minimum Window Substring': 'Hard',
+    'Sliding Window Maximum': 'Hard',
+    // Binary Search
+    'Binary Search': 'Easy',
+    'Search a 2D Matrix': 'Medium',
+    'Koko Eating Bananas': 'Medium',
+    'Search in Rotated Sorted Array': 'Medium',
+    'Find Minimum in Rotated Sorted Array': 'Medium',
+    'Time Based Key-Value Store': 'Medium',
+    'Median of Two Sorted Arrays': 'Hard',
+    // Linked List
+    'Reverse Linked List': 'Easy',
+    'Merge Two Sorted Lists': 'Easy',
+    'Reorder List': 'Medium',
+    'Remove Nth Node From End of List': 'Medium',
+    'Copy List with Random Pointer': 'Medium',
+    'Add Two Numbers': 'Medium',
+    'Linked List Cycle': 'Easy',
+    'Find the Duplicate Number': 'Medium',
+    'LRU Cache': 'Medium',
+    'Merge k Sorted Lists': 'Hard',
+    'Reverse Nodes in k-Group': 'Hard',
+    // Trees
+    'Invert Binary Tree': 'Easy',
+    'Maximum Depth of Binary Tree': 'Easy',
+    'Diameter of Binary Tree': 'Easy',
+    'Balanced Binary Tree': 'Easy',
+    'Same Tree': 'Easy',
+    'Subtree of Another Tree': 'Easy',
+    'Lowest Common Ancestor of a BST': 'Medium',
+    'Binary Tree Level Order Traversal': 'Medium',
+    'Binary Tree Right Side View': 'Medium',
+    'Count Good Nodes in Binary Tree': 'Medium',
+    'Validate Binary Search Tree': 'Medium',
+    'Kth Smallest Element in a BST': 'Medium',
+    'Construct BT from Preorder and Inorder Traversal': 'Medium',
+    'Binary Tree Maximum Path Sum': 'Hard',
+    'Serialize and Deserialize Binary Tree': 'Hard'
+  };
+
+  // Helper function to get difficulty badge style (darker theme)
+  const getDifficultyStyle = (difficulty) => {
+    switch (difficulty) {
+      case 'Easy':
+        return 'bg-green-700 text-green-100 border border-green-600';
+      case 'Medium':
+        return 'bg-yellow-700 text-yellow-100 border border-yellow-600';
+      case 'Hard':
+        return 'bg-red-700 text-red-100 border border-red-600';
+      default:
+        return 'bg-gray-700 text-gray-100 border border-gray-600';
+    }
   };
 
   // Helper function to convert question name to problem ID
@@ -396,37 +489,42 @@ export default function Dashboard() {
                             const starCount = getQuestionStars(question);
                             const isLoadingQuestion = loadingStars && questionToProblemId[question];
                             const questionSlug = getQuestionSlug(question);
-                            return (
-                              <li 
-                                key={index} 
-                                className={`flex items-center justify-between transition-all duration-200 ${
-                                  isUnlocked(tier.requiredStars)
-                                    ? 'text-gray-300 hover:text-blue-400 cursor-pointer group p-1.5 rounded-md hover:bg-gray-700'
-                                    : 'text-gray-600 cursor-not-allowed'
-                                }`}
-                              >
-                                <div className="flex items-center flex-1 min-w-0">
-                                  <svg className={`w-3.5 h-3.5 mr-2 flex-shrink-0 transition-colors ${
-                                    isUnlocked(tier.requiredStars) 
-                                      ? 'text-blue-500 group-hover:text-blue-400' 
-                                      : 'text-gray-600'
-                                  }`} fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                  {isUnlocked(tier.requiredStars) ? (
-                                    <Link 
-                                      href={`/question/${questionSlug}`}
-                                      className="truncate text-sm hover:text-blue-400 transition-colors"
-                                    >
-                                      {question}
-                                    </Link>
-                                  ) : (
-                                    <span className="truncate text-sm">{question}</span>
-                                  )}
-                                </div>
-                                <div className="ml-2 flex-shrink-0">
-                                  {renderStars(starCount, isLoadingQuestion)}
-                                </div>
+                            const difficulty = questionDifficulties[question] || 'Easy';
+                            return (                              <li key={index}>
+                                {isUnlocked(tier.requiredStars) ? (
+                                  <Link 
+                                    href={`/question/${questionSlug}`}
+                                    className="flex items-center justify-between transition-all duration-200 text-gray-300 hover:text-blue-400 cursor-pointer group p-1.5 rounded-md hover:bg-gray-700 block"
+                                  >
+                                    <div className="flex items-center flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <span className="truncate text-sm">
+                                          {question}
+                                        </span>
+                                        <span className={`text-xs rounded-full px-2 py-1 flex-shrink-0 ${getDifficultyStyle(difficulty)}`}>
+                                          {difficulty}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="ml-2 flex-shrink-0">
+                                      {renderStars(starCount, isLoadingQuestion)}
+                                    </div>
+                                  </Link>
+                                ) : (
+                                  <div className="flex items-center justify-between transition-all duration-200 text-gray-600 cursor-not-allowed p-1.5 rounded-md">
+                                    <div className="flex items-center flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <span className="truncate text-sm">{question}</span>
+                                        <span className={`text-xs rounded-full px-2 py-1 flex-shrink-0 ${getDifficultyStyle(difficulty)}`}>
+                                          {difficulty}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="ml-2 flex-shrink-0">
+                                      {renderStars(starCount, isLoadingQuestion)}
+                                    </div>
+                                  </div>
+                                )}
                               </li>
                             );
                           })}
