@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function middleware(request) {
-  const session = cookies().get('session');
+  const session = await cookies().get('session');
 
   // Protect dashboard and settings routes
   if (!session && (

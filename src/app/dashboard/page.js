@@ -180,13 +180,12 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { getDocument } = useFirestore();
   const router = useRouter();
-
   // State for real data
   const [userTotalStars, setUserTotalStars] = useState(0);
-  const [tier1QuestionStars, setTier1QuestionStars] = useState({});
-  const [loadingStars, setLoadingStars] = useState(true);
-  // Mapping of question names to problem IDs for tier 1 (Arrays & Hashing)
+  const [firestoreQuestionStars, setFirestoreQuestionStars] = useState({});
+  const [loadingStars, setLoadingStars] = useState(true);// Mapping of question names to problem IDs for tier 1 (Arrays & Hashing) and tier 2 (Two Pointers)
   const questionToProblemId = {
+    // Tier 1: Arrays & Hashing
     'Contains Duplicate': 'contains-duplicate',
     'Valid Anagram': 'valid-anagram',
     'Two Sum': 'two-sum',
@@ -195,7 +194,13 @@ export default function Dashboard() {
     'Product of Array Except Self': 'product-of-array-except-self',
     'Valid Sudoku': 'valid-sudoku',
     'Encode and Decode Strings': 'encode-and-decode-strings',
-    'Longest Consecutive Sequence': 'longest-consecutive-sequence'
+    'Longest Consecutive Sequence': 'longest-consecutive-sequence',
+    // Tier 2: Two Pointers
+    'Valid Palindrome': 'valid-palindrome',
+    'Two Sum II - Input Array Sorted': 'two-sum-ii',
+    '3Sum': '3sum',
+    'Container With Most Water': 'container-with-most-water',
+    'Trapping Rain Water': 'trapping-rain-water'
   };
 
   // Helper function to convert question name to problem ID
@@ -242,8 +247,7 @@ export default function Dashboard() {
       year: 234,
       all: 234
     }
-  };
-  // Fetch user data from Firestore
+  };  // Fetch user data from Firestore
   useEffect(() => {
     const fetchUserData = async () => {
       if (user?.uid) {
@@ -253,7 +257,7 @@ export default function Dashboard() {
           if (userDoc && userDoc['total-stars'] !== undefined) {
             setUserTotalStars(userDoc['total-stars']);
           }
-            // Fetch tier 1 question data
+            // Fetch question data for all questions with Firestore mapping
           const questionStars = {};
           const allProblemData = userDoc.problemData;
           console.log('All problem data:', allProblemData);
@@ -265,7 +269,7 @@ export default function Dashboard() {
             console.log(`${questionName} (${problemId}): ${stars} stars`, problemData);
           }
           console.log('Final questionStars:', questionStars);
-          setTier1QuestionStars(questionStars);
+          setFirestoreQuestionStars(questionStars);
         } catch (error) {
           console.error('Error fetching user data:', error);
         } finally {
@@ -275,20 +279,19 @@ export default function Dashboard() {
     };
 
     fetchUserData();
-  }, [user?.uid, getDocument]);
-  // Helper function to get star count for a question
+  }, [user?.uid, getDocument]);  // Helper function to get star count for a question
   const getQuestionStars = (questionName) => {
-    // For tier 1 questions, use real data
+    // For questions with Firestore mapping, use real data
     if (questionToProblemId[questionName]) {
-      const stars = tier1QuestionStars[questionName] || 0;
-      console.log(`getQuestionStars for ${questionName}: ${stars} (tier 1)`);
+      const stars = firestoreQuestionStars[questionName] || 0;
+      console.log(`getQuestionStars for ${questionName}: ${stars} (Firestore)`);
       return stars;
     }
-    // For other tiers, use mock data
+    // For other questions, use mock data
     const stars = mockQuestionStars[questionName] || 0;
     console.log(`getQuestionStars for ${questionName}: ${stars} (mock)`);
     return stars;
-  };  // Helper function to render stars
+  };// Helper function to render stars
   const renderStars = (count, isLoading = false) => {
     console.log(`renderStars called with count: ${count}, isLoading: ${isLoading}`);
     const maxStars = 3;
@@ -391,7 +394,7 @@ export default function Dashboard() {
                         </h3>
                           <ul className="space-y-2">                          {topic.questions.map((question, index) => {
                             const starCount = getQuestionStars(question);
-                            const isLoadingQuestion = tier.id === 1 && loadingStars && questionToProblemId[question];
+                            const isLoadingQuestion = loadingStars && questionToProblemId[question];
                             const questionSlug = getQuestionSlug(question);
                             return (
                               <li 
