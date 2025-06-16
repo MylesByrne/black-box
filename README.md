@@ -31,7 +31,7 @@ A comprehensive coding practice platform inspired by LeetCode, featuring an inte
 - **Lock Screen Protection**: Prevents access to problems requiring higher star counts
 - **Firebase Authentication**: Secure user accounts and data persistence
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Frontend
 - **Next.js 15.3.3** - React framework with App Router
@@ -54,7 +54,7 @@ A comprehensive coding practice platform inspired by LeetCode, featuring an inte
 - **Autoprefixer** - CSS vendor prefixing
 - **PostCSS** - CSS processing
 
-## 📦 Installation
+## Installation
 
 1. **Clone the repository**
    ```bash
@@ -118,7 +118,7 @@ A comprehensive coding practice platform inspired by LeetCode, featuring an inte
 - **Tier 7 (175+ stars)**: Optimization patterns (Intervals, Greedy, Bit Manipulation)
 - **Tier 8 (275+ stars)**: Mastery level (Advanced Graphs, 2D DP, Math & Geometry)
 
-## 🏗 Project Structure
+## Project Structure
 
 ```
 black-box/
@@ -149,31 +149,9 @@ black-box/
 └── README.md
 ```
 
-## 🔧 Configuration
-
-### Firebase Setup
-1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-2. Enable Authentication with Email/Password
-3. Create a Firestore database
-4. Add your web app configuration to `.env.local`
-
-### OpenAI Setup
-1. Get an API key from [platform.openai.com](https://platform.openai.com)
-2. Add the key to your environment variables
-3. Ensure sufficient credits for transcription and text generation
-
-### Judge0 Configuration
-The project uses the free Judge0 CE API. For production, consider:
-- Setting up your own Judge0 instance
-- Using RapidAPI Judge0 for higher rate limits
-- Implementing request queuing for better reliability
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-**Happy Coding! 🚀**
-
-*Transform your algorithmic thinking with Black Box - where code meets intelligence.*
