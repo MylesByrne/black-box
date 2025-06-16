@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useFirestore } from '@/context/FirestoreContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Header from '@/components/Header';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Mock data for dashboard modules
@@ -98,7 +99,7 @@ const tiers = [
   {
     id: 2,
     title: 'Tier 2: Basic Techniques',
-    requiredStars: 15,
+    requiredStars: 10,
     topics: [
       topicsData.find(t => t.id === 't2'), // Two Pointers
       topicsData.find(t => t.id === 't4')  // Stack
@@ -109,7 +110,7 @@ const tiers = [
   {
     id: 3,
     title: 'Tier 3: Core Algorithms',
-    requiredStars: 30,
+    requiredStars: 25,
     topics: [
       topicsData.find(t => t.id === 't5'), // Binary Search
       topicsData.find(t => t.id === 't3'), // Sliding Window
@@ -121,7 +122,7 @@ const tiers = [
   {
     id: 4,
     title: 'Tier 4: Tree Structures',
-    requiredStars: 50,
+    requiredStars: 55,
     topics: [topicsData.find(t => t.id === 't7')], // Trees
     color: 'bg-yellow-600',
     borderColor: 'border-yellow-500'
@@ -129,7 +130,7 @@ const tiers = [
   {
     id: 5,
     title: 'Tier 5: Advanced Data Structures',
-    requiredStars: 70,
+    requiredStars: 80,
     topics: [
       topicsData.find(t => t.id === 't8'),  // Tries
       topicsData.find(t => t.id === 't10') // Backtracking
@@ -140,7 +141,7 @@ const tiers = [
   {
     id: 6,
     title: 'Tier 6: Complex Algorithms',
-    requiredStars: 90,
+    requiredStars: 100,
     topics: [
       topicsData.find(t => t.id === 't9'),  // Heap/Priority Queue
       topicsData.find(t => t.id === 't11'), // Graphs
@@ -152,7 +153,7 @@ const tiers = [
   {
     id: 7,
     title: 'Tier 7: Optimization & Patterns',
-    requiredStars: 120,
+    requiredStars: 175,
     topics: [
       topicsData.find(t => t.id === 't16'), // Intervals
       topicsData.find(t => t.id === 't15'), // Greedy
@@ -164,7 +165,7 @@ const tiers = [
   {
     id: 8,
     title: 'Tier 8: Mastery',
-    requiredStars: 150,
+    requiredStars: 275,
     topics: [
       topicsData.find(t => t.id === 't12'), // Advanced Graphs
       topicsData.find(t => t.id === 't14'), // 2-D DP
@@ -176,17 +177,56 @@ const tiers = [
 ].filter(tier => tier.topics.every(topic => topic)); // Ensure all topics are found
 
 export default function Dashboard() {
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const { getDocument } = useFirestore();
   const router = useRouter();
-  const profileRef = useRef(null);
 
-  // Mock user stars - replace with actual data from your context/database
-  const [userTotalStars, setUserTotalStars] = useState(52); // Mock value for demonstration
+  // State for real data
+  const [userTotalStars, setUserTotalStars] = useState(0);
+  const [tier1QuestionStars, setTier1QuestionStars] = useState({});
+  const [loadingStars, setLoadingStars] = useState(true);
+  // Mapping of question names to problem IDs for tier 1 (Arrays & Hashing)
+  const questionToProblemId = {
+    'Contains Duplicate': 'contains-duplicate',
+    'Valid Anagram': 'valid-anagram',
+    'Two Sum': 'two-sum',
+    'Group Anagrams': 'group-anagrams',
+    'Top K Frequent Elements': 'top-k-frequent-elements',
+    'Product of Array Except Self': 'product-of-array-except-self',
+    'Valid Sudoku': 'valid-sudoku',
+    'Encode and Decode Strings': 'encode-and-decode-strings',
+    'Longest Consecutive Sequence': 'longest-consecutive-sequence'
+  };
 
+  // Helper function to convert question name to problem ID
+  const getQuestionSlug = (questionName) => {
+    // First check if we have a specific mapping
+    if (questionToProblemId[questionName]) {
+      return questionToProblemId[questionName];
+    }
+    
+    // Otherwise, convert to slug format
+    return questionName
+      .toLowerCase()
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special characters
+      .trim()
+      .replace(/\s+/g, '-'); // Replace spaces with hyphens
+  };
+  // Function to calculate stars based on problem data
+  const calculateStars = (problemData) => {
+    if (!problemData) return 0;
+    
+    let stars = 0;
+    if (problemData.solved) stars = 1;
+    if (problemData.explanationGrade && problemData.explanationGrade.toLowerCase() === 'pass') stars = 2;
+    if (problemData.questionsGrade && problemData.questionsGrade.toLowerCase() === 'pass') stars = 3;
+    
+    return stars;
+  };
   // Stats panel state
   const [starsTimeFrame, setStarsTimeFrame] = useState('week');
   const [submissionsTimeFrame, setSubmissionsTimeFrame] = useState('week');
+  const [showStatsPanel, setShowStatsPanel] = useState(true);
 
   // Mock stats data
   const mockStats = {
@@ -203,15 +243,69 @@ export default function Dashboard() {
       all: 234
     }
   };
+  // Fetch user data from Firestore
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user?.uid) {
+        setLoadingStars(true);
+        try {          // Fetch total stars
+          const userDoc = await getDocument('Users', user.uid);
+          if (userDoc && userDoc['total-stars'] !== undefined) {
+            setUserTotalStars(userDoc['total-stars']);
+          }
+            // Fetch tier 1 question data
+          const questionStars = {};
+          const allProblemData = userDoc.problemData;
+          console.log('All problem data:', allProblemData);
+          
+          for (const [questionName, problemId] of Object.entries(questionToProblemId)) {
+            const problemData = allProblemData?.[problemId];
+            const stars = calculateStars(problemData);
+            questionStars[questionName] = stars;
+            console.log(`${questionName} (${problemId}): ${stars} stars`, problemData);
+          }
+          console.log('Final questionStars:', questionStars);
+          setTier1QuestionStars(questionStars);
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        } finally {
+          setLoadingStars(false);
+        }
+      }
+    };
 
+    fetchUserData();
+  }, [user?.uid, getDocument]);
   // Helper function to get star count for a question
   const getQuestionStars = (questionName) => {
-    return mockQuestionStars[questionName] || 0;
-  };
-
-  // Helper function to render stars
-  const renderStars = (count) => {
+    // For tier 1 questions, use real data
+    if (questionToProblemId[questionName]) {
+      const stars = tier1QuestionStars[questionName] || 0;
+      console.log(`getQuestionStars for ${questionName}: ${stars} (tier 1)`);
+      return stars;
+    }
+    // For other tiers, use mock data
+    const stars = mockQuestionStars[questionName] || 0;
+    console.log(`getQuestionStars for ${questionName}: ${stars} (mock)`);
+    return stars;
+  };  // Helper function to render stars
+  const renderStars = (count, isLoading = false) => {
+    console.log(`renderStars called with count: ${count}, isLoading: ${isLoading}`);
     const maxStars = 3;
+    
+    if (isLoading) {
+      return (
+        <div className="flex items-center space-x-0.5">
+          {[...Array(maxStars)].map((_, i) => (
+            <div
+              key={i}
+              className="w-3 h-3 bg-gray-600 animate-pulse rounded-full"
+            />
+          ))}
+        </div>
+      );
+    }
+    
     return (
       <div className="flex items-center space-x-0.5">
         {[...Array(maxStars)].map((_, i) => (
@@ -227,89 +321,20 @@ export default function Dashboard() {
       </div>
     );
   };
-
   useEffect(() => {
     if (!user) {
       router.push('/');
     }
   }, [user, router]);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      router.push('/');
-    } catch (error) {
-      console.error('Failed to logout:', error);
-    }
-  };
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
-        setIsProfileOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
   const isUnlocked = (requiredStars) => userTotalStars >= requiredStars;
 
   if (!user) {
     return null;
   }
-
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
-      {/* Header */}
-      <header className="fixed w-full bg-gray-800/80 backdrop-blur-sm border-b border-gray-700 z-50">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="text-2xl font-bold text-gray-100 hover:text-gray-400 transition-colors">
-                Black Box
-              </Link>
-            </div>
-            <div className="ml-auto flex items-center space-x-4">
-              {/* Stars Display */}
-              <div className="flex items-center space-x-2 bg-gray-700 px-3 py-1.5 rounded-md">
-                <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.719c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                <span className="text-sm font-medium text-gray-200">{userTotalStars} Stars</span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-gray-300 hover:text-gray-200 px-3 py-1.5 rounded-md hover:bg-gray-700 transition-colors"
-              >
-                Logout
-              </button>
-              <div className="relative" ref={profileRef}>
-                <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="w-8 h-8 rounded-full bg-gray-700 text-white flex items-center justify-center text-sm font-medium border border-gray-600 hover:bg-gray-600 transition-colors">
-                  {user?.email?.[0].toUpperCase()}
-                </button>
-                {isProfileOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg py-1 z-50 border border-gray-600">
-                    <div className="px-4 py-2 text-sm text-gray-300 border-b border-gray-600">
-                      Signed in as <br/><span className="font-medium text-gray-100">{user.email}</span>
-                    </div>
-                    <Link href="/settings" className="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 transition-colors">Settings</Link>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 transition-colors"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content Area */}
       <div className="pt-16 flex-grow flex h-screen">
@@ -364,10 +389,10 @@ export default function Dashboard() {
                         <h3 className={`text-xl font-medium mb-3 ${isUnlocked(tier.requiredStars) ? 'text-gray-200' : 'text-gray-500'}`}>
                           {topic.title}
                         </h3>
-                        
-                        <ul className="space-y-2">
-                          {topic.questions.map((question, index) => {
+                          <ul className="space-y-2">                          {topic.questions.map((question, index) => {
                             const starCount = getQuestionStars(question);
+                            const isLoadingQuestion = tier.id === 1 && loadingStars && questionToProblemId[question];
+                            const questionSlug = getQuestionSlug(question);
                             return (
                               <li 
                                 key={index} 
@@ -385,10 +410,19 @@ export default function Dashboard() {
                                   }`} fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                                   </svg>
-                                  <span className="truncate text-sm">{question}</span>
+                                  {isUnlocked(tier.requiredStars) ? (
+                                    <Link 
+                                      href={`/question/${questionSlug}`}
+                                      className="truncate text-sm hover:text-blue-400 transition-colors"
+                                    >
+                                      {question}
+                                    </Link>
+                                  ) : (
+                                    <span className="truncate text-sm">{question}</span>
+                                  )}
                                 </div>
                                 <div className="ml-2 flex-shrink-0">
-                                  {renderStars(starCount)}
+                                  {renderStars(starCount, isLoadingQuestion)}
                                 </div>
                               </li>
                             );
@@ -397,16 +431,42 @@ export default function Dashboard() {
                       </div>
                     ))}
                   </div>
-                </div>
-              ))}
+                </div>              ))}
             </div>
           </div>
         </div>
 
+        {/* Show Stats Button when panel is hidden */}
+        {!showStatsPanel && (
+          <div className="fixed top-20 right-4 z-10">
+            <button
+              onClick={() => setShowStatsPanel(true)}
+              className="bg-gray-800 border border-gray-700 text-gray-200 p-2 rounded-lg shadow-lg hover:bg-gray-700 transition-colors"
+              aria-label="Show statistics panel"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Right Stats Panel */}
-        <div className="w-80 border-l border-gray-700 bg-gray-800 overflow-y-auto">
-          <div className="p-4">
-            <h2 className="text-xl font-bold text-gray-100 mb-6">Statistics</h2>
+        {showStatsPanel && (
+          <div className="w-80 border-l border-gray-700 bg-gray-800 overflow-y-auto">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-100">Statistics</h2>
+                <button
+                  onClick={() => setShowStatsPanel(false)}
+                  className="text-gray-400 hover:text-gray-200 transition-colors p-1 rounded-md hover:bg-gray-700"
+                  aria-label="Close statistics panel"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             
             {/* Stars Earned */}
             <div className="bg-gray-900 rounded-lg p-4 mb-4 border border-gray-700">
@@ -491,16 +551,15 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center space-x-2 text-sm">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-300">Solved "Valid Palindrome" - 3★</span>
-                </div>
+                  <span className="text-gray-300">Solved "Valid Palindrome" - 3★</span>                </div>
                 <div className="flex items-center space-x-2 text-sm">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   <span className="text-gray-300">Unlocked Tier 3</span>
                 </div>
-              </div>
+              </div>              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

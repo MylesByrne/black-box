@@ -7,7 +7,8 @@ export async function middleware(request) {
   // Protect dashboard and settings routes
   if (!session && (
     request.nextUrl.pathname.startsWith('/dashboard') ||
-    request.nextUrl.pathname.startsWith('/settings')
+    request.nextUrl.pathname.startsWith('/settings') ||
+    request.nextUrl.pathname.startsWith('/question')
   )) {
     return NextResponse.redirect(new URL('/', request.url));
   }
@@ -25,5 +26,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/', '/login', '/signup', '/dashboard/:path*', '/settings/:path*']
+  matcher: ['/', '/login', '/signup', '/dashboard/:path*', '/settings/:path*', '/question/:path*']
 };
