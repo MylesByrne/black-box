@@ -2,7 +2,7 @@
 
 A comprehensive coding practice platform inspired by LeetCode, featuring an interactive problem-solving environment with AI-powered explanations, voice transcription, and gamified progression system.
 
-## 🚀 Features
+## Features
 
 ### Core Functionality
 - **Interactive Code Editor**: Monaco Editor with Python syntax highlighting and auto-completion

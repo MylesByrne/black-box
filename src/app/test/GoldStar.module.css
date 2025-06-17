@@ -1,35 +1,166 @@
-.scene {
+/* 3D spinning black box animation */
+.spinningBox {
   width: 200px;
   height: 200px;
-  perspective: 600px;
-}
-
-.cube {
-  width: 100px;
-  height: 100px;
   position: relative;
   transform-style: preserve-3d;
-  margin: auto;
-  animation: spinY 3s linear infinite;
+  animation: spinY 4s linear infinite;
 }
 
-.face {
+.boxFace {
+  width: 200px;
+  height: 200px;
   position: absolute;
-  width: 100px;
-  height: 100px;
-  background: black;
-  border: 2px solid #333;
-  opacity: 0.95;
+  background: #1a1a1a;
+  border: 1px solid #333;
 }
 
-.front  { transform: translateZ(50px); }
-.back   { transform: rotateY(180deg) translateZ(50px); }
-.left   { transform: rotateY(-90deg) translateZ(50px); }
-.right  { transform: rotateY(90deg) translateZ(50px); }
-.top    { transform: rotateX(90deg) translateZ(50px); }
-.bottom { transform: rotateX(-90deg) translateZ(50px); }
+/* Individual faces of the 3D cube */
+.front {
+  transform: rotateY(0deg) translateZ(100px);
+  background: #000000;
+}
 
+.back {
+  transform: rotateY(180deg) translateZ(100px);
+  background: #000000;
+}
+
+.right {
+  transform: rotateY(90deg) translateZ(100px);
+  background: #000000;
+}
+
+.left {
+  transform: rotateY(-90deg) translateZ(100px);
+  background: #000000;
+}
+
+.top {
+  transform: rotateX(90deg) translateZ(100px);
+  background: #000000;
+}
+
+.bottom {
+  transform: rotateX(-90deg) translateZ(100px);
+  background: #03205f;
+}
+
+/* Y-axis spinning animation */
 @keyframes spinY {
-  from { transform: rotateY(0deg); }
-  to   { transform: rotateY(360deg); }
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(360deg);
+  }
+}
+
+/* Container for the outskirt lines */
+.outskirtLines {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  pointer-events: none;
+}
+
+/* Base line styling */
+.line {
+  position: absolute;
+  background: white;
+  opacity: 0.8;
+}
+
+/* Individual line positions and orientations */
+.lineTop {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 150px;
+}
+
+.lineRight {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  width: 150px;
+  height: 3px;
+}
+
+.lineBottom {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 150px;
+}
+
+.lineLeft {
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 150px;
+  height: 3px;
+}
+
+/* Diagonal lines at 45 degree angles */
+.lineNorthEast {
+  top: 15%;
+  right: 15%;
+  transform: rotate(-45deg);
+  width: 106px; /* sqrt(75^2 + 75^2) to maintain same visual length */
+  height: 3px;
+}
+
+.lineSouthEast {
+  bottom: 15%;
+  right: 15%;
+  transform: rotate(45deg);
+  width: 106px;
+  height: 3px;
+}
+
+.lineSouthWest {
+  bottom: 15%;
+  left: 15%;
+  transform: rotate(135deg);
+  width: 106px;
+  height: 3px;
+}
+
+.lineNorthWest {
+  top: 15%;
+  left: 15%;
+  transform: rotate(-135deg);
+  width: 106px;
+  height: 3px;
+}
+
+/* Full screen opaque overlay */
+.screenOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Opaque overlay */
+.opaqueOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 10;
 }

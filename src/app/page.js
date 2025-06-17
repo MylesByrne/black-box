@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import styles from './test/GoldStar.module.css';
 
 export default function Home() {
   const { user } = useAuth();
@@ -17,16 +18,35 @@ export default function Home() {
   }, [user, router]);
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
-      {/* Background Image */}
-      <div className="fixed inset-0 z-0">
-        <Image
-          src="/images/ocean-bg.gif"
-          alt="Ocean waves"
-          fill
-          className="object-cover opacity-30"
-          priority
-        />
+    <div className="min-h-screen bg-gray-50 relative">      {/* Spinning Black Box Background Animation */}
+      <div className="fixed inset-0 z-0 flex items-center justify-end overflow-hidden" style={{paddingRight: 'calc(20% + 150px)'}}>
+        {/* Light overlay over entire screen */}
+        <div className={styles.screenOverlay}></div>
+        
+        <div className="relative">
+          {/* Main spinning 3D black box */}
+          <div className={styles.spinningBox}>
+            <div className={`${styles.boxFace} ${styles.front}`}></div>
+            <div className={`${styles.boxFace} ${styles.back}`}></div>
+            <div className={`${styles.boxFace} ${styles.right}`}></div>
+            <div className={`${styles.boxFace} ${styles.left}`}></div>
+            <div className={`${styles.boxFace} ${styles.top}`}></div>
+            <div className={`${styles.boxFace} ${styles.bottom}`}></div>
+          </div>
+          
+          {/* White lines radiating out */}
+          <div className={styles.outskirtLines}>
+            <div className={`${styles.line} ${styles.lineTop}`}></div>
+            <div className={`${styles.line} ${styles.lineRight}`}></div>
+            <div className={`${styles.line} ${styles.lineBottom}`}></div>
+            <div className={`${styles.line} ${styles.lineLeft}`}></div>
+            {/* Diagonal lines at 45 degree angles */}
+            <div className={`${styles.line} ${styles.lineNorthEast}`}></div>
+            <div className={`${styles.line} ${styles.lineSouthEast}`}></div>
+            <div className={`${styles.line} ${styles.lineSouthWest}`}></div>
+            <div className={`${styles.line} ${styles.lineNorthWest}`}></div>
+          </div>
+        </div>
       </div>
 
       {/* Content */}
