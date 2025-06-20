@@ -10,11 +10,9 @@ import ProblemDescriptionPanel from '@/components/ProblemDescriptionPanel';
 import CodeEditorPanel from '@/components/CodeEditorPanel';
 import { useProblem } from '@/hooks/useProblem';
 import { useQuestions } from '@/hooks/useQuestions';
-import { useRouter } from 'next/navigation';
 
 export default function ProblemPage() {
-  const problemId = "search-in-rotated-sorted-array"; // Hardcoded
-  const router = useRouter();
+  const problemId = "reorder-list"; // Hardcoded
   
   // Use the custom hooks
   const {
@@ -74,38 +72,11 @@ export default function ProblemPage() {
   const [showQuestionsPassAnimation, setShowQuestionsPassAnimation] = useState(false);
   const [showQuestionsFailAnimation, setShowQuestionsFailAnimation] = useState(false);
 
-
-
-  // State for user's total stars and problem lock status
-  const [userTotalStars, setUserTotalStars] = useState(0);
-  const [isStarLocked, setIsStarLocked] = useState(false);
-
-  // Fetch user's total stars
-  useEffect(() => {
-    const fetchUserStars = async () => {
-      if (user) {
-        try {
-          const userDoc = await getDocument('Users', user.uid);
-          if (userDoc && userDoc['total-stars'] !== undefined) {
-            setUserTotalStars(userDoc['total-stars']);
-          }
-        } catch (error) {
-          console.error('Error fetching user stars:', error);
-        }
-      }
-    };
-
-    fetchUserStars();
-  }, [user, getDocument]);
-
-  // Check if problem should be locked based on required stars
-  useEffect(() => {
-    if (problem && userTotalStars !== null) {
-      // For testing purposes, set requiredStars to 5 if not defined in problem data
-      const requiredStars = problem.requiredStars || 5;
-      setIsStarLocked(userTotalStars < requiredStars);
-    }
-  }, [problem, userTotalStars]);
+  const formatRecordingTime = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   // Set timer based on difficulty when problem loads   
   useEffect(() => {
@@ -188,8 +159,11 @@ export default function ProblemPage() {
     try {
       // Get function name and test logic from problem data
       const functionName = problem.functionName;
-      const testCall = `
-from typing import List
+      const testCall = `from typing import List, Optional
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
 
 ${code}
 solution = Solution()
@@ -198,20 +172,40 @@ def check_solution():
   
   for i in range(len(testCases)):
       testCase = testCases[i]
-      result = solution.${functionName}(${problem.testCaseArgs})
-      if result == testCase['expected']:
-        continue
+      head_array = testCase["head"]
+      
+      # Handle empty linked list case
+      if not head_array:
+          head = None
       else:
-        print(f"Test case {i+1}: Failed | Input: ${problem.testCaseInputFormat || "nums={testCase['nums']}, target={testCase['target']}"} | Expected: {testCase['expected']}, Got: {result}")
-        return
+          # Create linked list
+          head = ListNode(head_array[0])
+          current = head
+          for val in head_array[1:]:
+              current.next = ListNode(val)
+              current = current.next
+      
+      # For reorderList, the function modifies the list in-place and returns None
+      solution.${functionName}(head)
+      
+      # Check the modified list
+      result = []
+      current = head
+      while current:
+          result.append(current.val)
+          current = current.next
+
+      if result == testCase['expected']:
+          continue
+      else:
+          print(f"Test case {i+1}: Failed | Input: head={testCase['head']} | Expected: {testCase['expected']}, Got: {result}")
+          return
   print("SUBMISSION_RESULT: Accepted")
         
-
 try:
     check_solution()
 except Exception as e:
-    print("Error:", e)
-      `.trim();
+    print("Error:", e)`.trim();
       const response = await submitCode(testCall);
       setOutput(response);
       console.log('Judge0 response:', response);
@@ -235,37 +229,53 @@ except Exception as e:
     try {
       // Get function name and test logic from problem data
       const functionName = problem.functionName || 'twoSum';
-      const testCall = `
-from typing import List
+      const testCall = `from typing import List, Optional
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
 
 ${code}
 solution = Solution()
 def check_solution():
   testCases = ${JSON.stringify(testCases)}
-  passed = 0
-  total = len(testCases)
   
   for i in range(len(testCases)):
       testCase = testCases[i]
-      result = solution.${functionName}(${problem.testCaseArgs})
-      if result == testCase['expected']:
-        passed += 1
+      head_array = testCase["head"]
+      
+      # Handle empty linked list case
+      if not head_array:
+          head = None
       else:
-        print(f"Test case {i+1}: Failed | Input: ${problem.testCaseInputFormat || "nums={testCase['nums']}, target={testCase['target']}"} | Expected: testCase['expected'], Got: {result}")
-  if passed == total:
-    return True
-  else:
-    print(f"{passed}/{total} test cases passed")
-    return False
-        
+          # Create linked list
+          head = ListNode(head_array[0])
+          current = head
+          for val in head_array[1:]:
+              current.next = ListNode(val)
+              current = current.next
+      
+      # For reorderList, the function modifies the list in-place and returns None
+      solution.${functionName}(head)
+      
+      # Check the modified list
+      result = []
+      current = head
+      while current:
+          result.append(current.val)
+          current = current.next
 
+      if result == testCase['expected']:
+          continue
+      else:
+          print(f"Test case {i+1}: Failed | Input: head={testCase['head']} | Expected: {testCase['expected']}, Got: {result}")
+          return
+  print("SUBMISSION_RESULT: Accepted")
+        
 try:
-    result = check_solution();
-    print("SUBMISSION_RESULT:", "Accepted" if result else "Wrong Answer")
+    check_solution()
 except Exception as e:
-    print("Error:", e)
-    print("SUBMISSION_RESULT:", "Runtime Error")
-      `.trim();
+    print("Error:", e)`.trim();
       
       const response = await submitCode(testCall);
       setOutput(response);
@@ -736,25 +746,9 @@ except Exception as e:
       }, 1500);
     }
   };
-  // Locked Screen Component
-  const LockedScreen = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" style={{ top: '64px' }}>
-      <div className="bg-grey-400 rounded-lg p-8 text-center max-w-md mx-4 shadow-2xl">
-        <p className="text-gray-600 mb-6 text-lg">
-          This problem requires a star count of <span className="font-bold text-blue-600">{problem?.requiredStars || 5}</span>
-        </p>
-        <p className="text-gray-500 mb-6">
-          You currently have <span className="font-bold">{userTotalStars}</span> stars
-        </p>
-        <button 
-          onClick={() => router.push('/dashboard')}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
-        >
-          Return to Dashboard
-        </button>
-      </div>
-    </div>
-  );
+
+
+
 
   return (
     <div className="min-h-screen bg-gray-800 flex flex-col">
@@ -778,7 +772,7 @@ except Exception as e:
               isReviewing={isReviewing}
               isRecording={isRecording}
               recordingTime={recordingTime}
-              /*formatRecordingTime={formatRecordingTime}*/
+              formatRecordingTime={formatRecordingTime}
               startRecording={startRecording}
               stopRecording={stopRecording}
               showQuestionsModal={showQuestionsModal}
@@ -819,9 +813,6 @@ except Exception as e:
           </Panel>
         </PanelGroup>
       </div>
-
-      {/* Show locked screen if problem is locked */}
-      {isStarLocked && <LockedScreen />}
     </div>
   )
 }

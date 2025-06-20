@@ -90,7 +90,7 @@ A comprehensive coding practice platform inspired by LeetCode, featuring an inte
 5. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## 🎯 Usage
+## Usage
 
 ### Getting Started
 1. **Sign Up/Login**: Create an account or sign in with existing credentials

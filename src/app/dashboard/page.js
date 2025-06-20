@@ -208,7 +208,34 @@ export default function Dashboard() {
     'Generate Parentheses': 'generate-parentheses',
     'Daily Temperatures': 'daily-temperatures',
     'Car Fleet': 'car-fleet',
-    'Largest Rectangle in Histogram': 'largest-rectangle-in-histogram'
+    'Largest Rectangle in Histogram': 'largest-rectangle-in-histogram',
+    // Binary Search, Sliding Window, Linked List 
+    'Binary Search': 'binary-search',
+    'Search a 2D Matrix': 'search-a-2d-matrix',
+    'Koko Eating Bananas': 'koko-eating-bananas',
+    'Search in Rotated Sorted Array': 'search-in-rotated-sorted-array',
+    'Find Minimum in Rotated Sorted Array': 'find-minimum-in-rotated-sorted-array',
+    'Time Based Key-Value Store': 'time-based-key-value-store',
+    'Median of Two Sorted Arrays': 'median-of-two-sorted-arrays',
+    'Reverse Linked List': 'reverse-linked-list',
+    'Merge Two Sorted Lists': 'merge-two-sorted-lists',
+    'Reorder List': 'reorder-list',
+    'Remove Nth Node From End of List': 'remove-nth-node-from-end-of-list',
+    'Copy List with Random Pointer': 'copy-list-with-random-pointer',
+    'Add Two Numbers': 'add-two-numbers',
+    'Linked List Cycle': 'linked-list-cycle',
+    'Find the Duplicate Number': 'find-the-duplicate-number',
+    'LRU Cache': 'lru-cache',
+    'Merge k Sorted Lists': 'merge-k-sorted-lists',
+    'Reverse Nodes in k-Group': 'reverse-nodes-in-k-group',
+    //sliding window
+    'Best Time to Buy and Sell Stock': 'best-time-to-buy-and-sell-stock',
+    'Longest Substring Without Repeating Characters': 'longest-substring-without-repeating-characters',
+    'Longest Repeating Character Replacement': 'longest-repeating-character-replacement',
+    'Permutation in String': 'permutation-in-string',
+    'Minimum Window Substring': 'minimum-window-substring',
+    'Sliding Window Maximum': 'sliding-window-maximum'
+
   };
 
   // Mapping of question names to their difficulties
