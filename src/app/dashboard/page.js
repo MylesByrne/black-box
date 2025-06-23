@@ -77,7 +77,7 @@ const topicsData = [
   { id: 't9', title: 'Heap / Priority Queue', questions: ['Kth Largest Element in a Stream', 'Last Stone Weight', 'K Closest Points to Origin', 'Kth Largest Element in an Array', 'Task Scheduler', 'Design Twitter', 'Find Median from Data Stream'] },
   { id: 't10', title: 'Backtracking', questions: ['Subsets', 'Combination Sum', 'Permutations', 'Subsets II', 'Combination Sum II', 'Word Search', 'Palindrome Partitioning', 'Letter Combinations of a Phone Number', 'N-Queens'] },
   { id: 't11', title: 'Graphs', questions: ['Number of Islands', 'Clone Graph', 'Max Area of Island', 'Pacific Atlantic Water Flow', 'Surrounded Regions', 'Rotting Oranges', 'Walls and Gates', 'Course Schedule', 'Course Schedule II', 'Redundant Connection', 'Number of Connected Components in an Undirected Graph', 'Graph Valid Tree', 'Word Ladder'] },
-  { id: 't12', title: 'Advanced Graphs', questions: ['Min Cost to Connect All Points', 'Network Delay Time', 'Cheapest Flights Within K Stops', 'Swim in Rising Water', 'Alien Dictionary'] },
+  { id: 't12', title: 'Advanced Graphs', questions: ['Min Cost to Connect All Points', 'Network Delay Time', 'Cheapest Flights Within K Stops', 'Swim in Rising Water', 'Alien Dictionary', 'Reconstruct Itinerary'] },
   { id: 't13', title: '1-D Dynamic Programming', questions: ['Climbing Stairs', 'Min Cost Climbing Stairs', 'House Robber', 'House Robber II', 'Longest Palindromic Substring', 'Palindromic Substrings', 'Decode Ways', 'Coin Change', 'Maximum Product Subarray', 'Word Break', 'Longest Increasing Subsequence', 'Partition Equal Subset Sum'] },
   { id: 't14', title: '2-D Dynamic Programming', questions: ['Unique Paths', 'Longest Common Subsequence', 'Best Time to Buy and Sell Stock with Cooldown', 'Coin Change II', 'Target Sum', 'Interleaving String', 'Edit Distance', 'Burst Balloons', 'Distinct Subsequences', 'Regular Expression Matching'] },
   { id: 't15', title: 'Greedy', questions: ['Maximum Subarray', 'Jump Game', 'Jump Game II', 'Gas Station', 'Hand of Straights', 'Merge Triplets to Form Target Triplet', 'Partition Labels', 'Valid Parenthesis String'] },
@@ -189,6 +189,36 @@ export default function Dashboard() {
 
   // Mapping of question names to problem IDs for tier 1 (Arrays & Hashing), tier 2 (Two Pointers), and Stack questions
   const questionToProblemId = {
+    
+// Advanced Graphs
+'Min Cost to Connect All Points': 'min-cost-to-connect-all-points',
+'Network Delay Time': 'network-delay-time',
+'Cheapest Flights Within K Stops': 'cheapest-flights-within-k-stops',
+'Swim in Rising Water': 'swim-in-rising-water',
+'Alien Dictionary': 'alien-dictionary',
+'Reconstruct Itinerary': 'reconstruct-itinerary',
+
+// 2-D Dynamic Programming
+'Unique Paths': 'unique-paths',
+'Longest Common Subsequence': 'longest-common-subsequence',
+'Best Time to Buy and Sell Stock with Cooldown': 'best-time-to-buy-and-sell-stock-with-cooldown',
+'Coin Change II': 'coin-change-ii',
+'Target Sum': 'target-sum',
+'Interleaving String': 'interleaving-string',
+'Edit Distance': 'edit-distance',
+'Burst Balloons': 'burst-balloons',
+'Distinct Subsequences': 'distinct-subsequences',
+'Regular Expression Matching': 'regular-expression-matching',
+
+// Math & Geometry
+'Rotate Image': 'rotate-image',
+'Spiral Matrix': 'spiral-matrix',
+'Set Matrix Zeroes': 'set-matrix-zeroes',
+'Happy Number': 'happy-number',
+'Plus One': 'plus-one',
+'Pow(x, n)': 'powx-n',
+'Multiply Strings': 'multiply-strings',
+'Detect Squares': 'detect-squares',
     // Tier 1: Arrays & Hashing
     'Contains Duplicate': 'contains-duplicate',
     'Valid Anagram': 'valid-anagram',
@@ -332,6 +362,35 @@ export default function Dashboard() {
 
   // Mapping of question names to their difficulties
   const questionDifficulties = {
+    // Advanced Graphs
+'Min Cost to Connect All Points': 'Medium',
+'Network Delay Time': 'Medium',
+'Cheapest Flights Within K Stops': 'Medium',
+'Swim in Rising Water': 'Hard',
+'Alien Dictionary': 'Hard',
+'Reconstruct Itinerary': 'Hard',
+
+// 2-D Dynamic Programming
+'Unique Paths': 'Medium',
+'Longest Common Subsequence': 'Medium',
+'Best Time to Buy and Sell Stock with Cooldown': 'Medium',
+'Coin Change II': 'Medium',
+'Target Sum': 'Medium',
+'Interleaving String': 'Medium',
+'Edit Distance': 'Hard',
+'Burst Balloons': 'Hard',
+'Distinct Subsequences': 'Hard',
+'Regular Expression Matching': 'Hard',
+
+// Math & Geometry
+'Rotate Image': 'Medium',
+'Spiral Matrix': 'Medium',
+'Set Matrix Zeroes': 'Medium',
+'Happy Number': 'Easy',
+'Plus One': 'Easy',
+'Pow(x, n)': 'Medium',
+'Multiply Strings': 'Medium',
+'Detect Squares': 'Medium',
     // Intervals
 'Insert Interval': 'Medium',
 'Merge Intervals': 'Medium',
