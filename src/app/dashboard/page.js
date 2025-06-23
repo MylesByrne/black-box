@@ -303,10 +303,61 @@ export default function Dashboard() {
     'Word Break': 'word-break',
     'Longest Increasing Subsequence': 'longest-increasing-subsequence',
     'Partition Equal Subset Sum': 'partition-equal-subset-sum',
+    'Insert Interval': 'insert-interval',
+'Merge Intervals': 'merge-intervals',
+'Non-overlapping Intervals': 'non-overlapping-intervals',
+'Meeting Rooms': 'meeting-rooms',
+'Meeting Rooms II': 'meeting-rooms-ii',
+'Minimum Interval to Include Each Query': 'minimum-interval-to-include-each-query',
+
+// Greedy
+'Maximum Subarray': 'maximum-subarray',
+'Jump Game': 'jump-game',
+'Jump Game II': 'jump-game-ii',
+'Gas Station': 'gas-station',
+'Hand of Straights': 'hand-of-straights',
+'Merge Triplets to Form Target Triplet': 'merge-triplets-to-form-target-triplet',
+'Partition Labels': 'partition-labels',
+'Valid Parenthesis String': 'valid-parenthesis-string',
+
+// Bit Manipulation
+'Single Number': 'single-number',
+'Number of 1 Bits': 'number-of-1-bits',
+'Counting Bits': 'counting-bits',
+'Reverse Bits': 'reverse-bits',
+'Missing Number': 'missing-number',
+'Sum of Two Integers': 'sum-of-two-integers',
+'Reverse Integer': 'reverse-integer',
   };
 
   // Mapping of question names to their difficulties
   const questionDifficulties = {
+    // Intervals
+'Insert Interval': 'Medium',
+'Merge Intervals': 'Medium',
+'Non-overlapping Intervals': 'Medium',
+'Meeting Rooms': 'Easy',
+'Meeting Rooms II': 'Medium',
+'Minimum Interval to Include Each Query': 'Hard',
+
+// Greedy
+'Maximum Subarray': 'Easy',
+'Jump Game': 'Medium',
+'Jump Game II': 'Medium',
+'Gas Station': 'Medium',
+'Hand of Straights': 'Medium',
+'Merge Triplets to Form Target Triplet': 'Medium',
+'Partition Labels': 'Medium',
+'Valid Parenthesis String': 'Medium',
+
+// Bit Manipulation
+'Single Number': 'Easy',
+'Number of 1 Bits': 'Easy',
+'Counting Bits': 'Easy',
+'Reverse Bits': 'Easy',
+'Missing Number': 'Easy',
+'Sum of Two Integers': 'Medium',
+'Reverse Integer': 'Medium',
     // Arrays & Hashing
     'Contains Duplicate': 'Easy',
     'Valid Anagram': 'Easy',
