@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useFirestore } from '@/context/FirestoreContext';
 import { useRouter } from 'next/navigation';
@@ -183,7 +183,11 @@ export default function Dashboard() {
   // State for real data
   const [userTotalStars, setUserTotalStars] = useState(0);
   const [firestoreQuestionStars, setFirestoreQuestionStars] = useState({});
-  const [loadingStars, setLoadingStars] = useState(true);  // Mapping of question names to problem IDs for tier 1 (Arrays & Hashing), tier 2 (Two Pointers), and Stack questions
+  const [loadingStars, setLoadingStars] = useState(true);
+  const [highestUnlockedTier, setHighestUnlockedTier] = useState(null);
+  const tierRefs = useRef({});
+
+  // Mapping of question names to problem IDs for tier 1 (Arrays & Hashing), tier 2 (Two Pointers), and Stack questions
   const questionToProblemId = {
     // Tier 1: Arrays & Hashing
     'Contains Duplicate': 'contains-duplicate',
@@ -224,8 +228,7 @@ export default function Dashboard() {
     'Copy List with Random Pointer': 'copy-list-with-random-pointer',
     'Add Two Numbers': 'add-two-numbers',
     'Linked List Cycle': 'linked-list-cycle',
-    'Find the Duplicate Number': 'find-the-duplicate-number',
-    'LRU Cache': 'lru-cache',
+    'Find the Duplicate Number': 'find-the-duplicate-number',    'LRU Cache': 'lru-cache',
     'Merge k Sorted Lists': 'merge-k-sorted-lists',
     'Reverse Nodes in k-Group': 'reverse-nodes-in-k-group',
     //sliding window
@@ -234,8 +237,37 @@ export default function Dashboard() {
     'Longest Repeating Character Replacement': 'longest-repeating-character-replacement',
     'Permutation in String': 'permutation-in-string',
     'Minimum Window Substring': 'minimum-window-substring',
-    'Sliding Window Maximum': 'sliding-window-maximum'
-
+    'Sliding Window Maximum': 'sliding-window-maximum',
+    // Tier 4: Trees
+    'Invert Binary Tree': 'invert-binary-tree',
+    'Maximum Depth of Binary Tree': 'maximum-depth-of-binary-tree',
+    'Diameter of Binary Tree': 'diameter-of-binary-tree',
+    'Balanced Binary Tree': 'balanced-binary-tree',
+    'Same Tree': 'same-tree',
+    'Subtree of Another Tree': 'subtree-of-another-tree',
+    'Lowest Common Ancestor of a BST': 'lowest-common-ancestor-of-a-bst',
+    'Binary Tree Level Order Traversal': 'binary-tree-level-order-traversal',
+    'Binary Tree Right Side View': 'binary-tree-right-side-view',
+    'Count Good Nodes in Binary Tree': 'count-good-nodes-in-binary-tree',
+    'Validate Binary Search Tree': 'validate-binary-search-tree',
+    'Kth Smallest Element in a BST': 'kth-smallest-element-in-a-bst',
+    'Construct BT from Preorder and Inorder Traversal': 'construct-bt-from-preorder-and-inorder-traversal',
+    'Binary Tree Maximum Path Sum': 'binary-tree-maximum-path-sum',
+    'Serialize and Deserialize Binary Tree': 'serialize-and-deserialize-binary-tree',
+    // Tries
+    'Implement Trie (Prefix Tree)': 'implement-trie-prefix-tree',
+    'Design Add and Search Words Data Structure': 'design-add-and-search-words-data-structure',
+    'Word Search II': 'word-search-ii',
+    // Backtracking
+    'Subsets': 'subsets',
+    'Combination Sum': 'combination-sum',
+    'Permutations': 'permutations',
+    'Subsets II': 'subsets-ii',
+    'Combination Sum II': 'combination-sum-ii',
+    'Word Search': 'word-search',
+    'Palindrome Partitioning': 'palindrome-partitioning',
+    'Letter Combinations of a Phone Number': 'letter-combinations-of-a-phone-number',
+    'N-Queens': 'n-queens'
   };
 
   // Mapping of question names to their difficulties
@@ -306,7 +338,21 @@ export default function Dashboard() {
     'Kth Smallest Element in a BST': 'Medium',
     'Construct BT from Preorder and Inorder Traversal': 'Medium',
     'Binary Tree Maximum Path Sum': 'Hard',
-    'Serialize and Deserialize Binary Tree': 'Hard'
+    'Serialize and Deserialize Binary Tree': 'Hard',
+    // Tries
+    'Implement Trie (Prefix Tree)': 'Medium',
+    'Design Add and Search Words Data Structure': 'Medium',
+    'Word Search II': 'Hard',
+    // Backtracking
+    'Subsets': 'Medium',
+    'Combination Sum': 'Medium',
+    'Permutations': 'Medium',
+    'Subsets II': 'Medium',
+    'Combination Sum II': 'Medium',
+    'Word Search': 'Medium',
+    'Palindrome Partitioning': 'Medium',
+    'Letter Combinations of a Phone Number': 'Medium',
+    'N-Queens': 'Hard'
   };
 
   // Helper function to get difficulty badge style (darker theme)
@@ -452,6 +498,33 @@ export default function Dashboard() {
 
   const isUnlocked = (requiredStars) => userTotalStars >= requiredStars;
 
+  // Add this useEffect to find the highest unlocked tier and scroll to it
+  useEffect(() => {
+    if (!loadingStars) {
+      // Find the highest tier that's unlocked
+      let highestTier = null;
+      
+      for (let i = tiers.length - 1; i >= 0; i--) {
+        if (isUnlocked(tiers[i].requiredStars)) {
+          highestTier = tiers[i].id;
+          break;
+        }
+      }
+      
+      setHighestUnlockedTier(highestTier);
+      
+      // Scroll to the highest unlocked tier
+      if (highestTier && tierRefs.current[highestTier]) {
+        setTimeout(() => {
+          tierRefs.current[highestTier].scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }, 500); // Short delay to ensure everything is rendered
+      }
+    }
+  }, [loadingStars, userTotalStars]);
+
   if (!user) {
     return null;
   }
@@ -469,6 +542,7 @@ export default function Dashboard() {
               {tiers.map((tier) => (
                 <div 
                   key={tier.id} 
+                  ref={el => tierRefs.current[tier.id] = el}
                   className={`relative rounded-xl p-6 border shadow-xl transition-all duration-300 ease-in-out ${
                     isUnlocked(tier.requiredStars) 
                       ? `bg-gray-800 ${tier.borderColor} hover:shadow-blue-500/20` 
@@ -487,7 +561,7 @@ export default function Dashboard() {
                       {!isUnlocked(tier.requiredStars) && (
                         <>
                           <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 002 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                           </svg>
                           <span className="text-sm text-gray-500">Requires {tier.requiredStars} stars</span>
                         </>

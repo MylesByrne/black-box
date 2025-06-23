@@ -19,7 +19,7 @@ export async function POST(request) {
       messages: [
         {
           role: "system",
-          content: "You are an expert programming instructor. Generate exactly 3 multiple choice questions based on the provided code. Each question should test understanding of the code's logic, algorithms, or implementation details. Have the questions be 7/10 in terms of difficulty. Format your response as a JSON array of objects, each with 'question', 'options' (array of 4 choices), and 'correctAnswer' (index 0-3) properties."
+          content: "You are an expert programming instructor. Generate exactly 3 multiple choice questions based on the provided code. Each question should test understanding of the code's logic, algorithms, or implementation details. Have the questions be 9/10 in terms of difficulty. Format your response as a JSON array of objects, each with 'question', 'options' (array of 4 choices), and 'correctAnswer' (index 0-3) properties."
         },
         {
           role: "user",
