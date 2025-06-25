@@ -253,7 +253,7 @@ def check_solution():
       if result == testCase['expected']:
         passed += 1
       else:
-        print(f"Test case {i+1}: Failed | Input: ${problem.testCaseInputFormat || "nums={testCase['nums']}, target={testCase['target']}"} | Expected: testCase['expected'], Got: {result}")
+        print(f"Test case {i+1}: Failed | Input: ${problem.testCaseInputFormat || "nums={testCase['nums']}, target={testCase['target']}"} | Expected: {testCase['expected']}, Got: {result}")
   if passed == total:
     return True
   else:

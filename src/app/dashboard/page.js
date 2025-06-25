@@ -79,7 +79,7 @@ const topicsData = [
   { id: 't11', title: 'Graphs', questions: ['Number of Islands', 'Clone Graph', 'Max Area of Island', 'Pacific Atlantic Water Flow', 'Surrounded Regions', 'Rotting Oranges', 'Walls and Gates', 'Course Schedule', 'Course Schedule II', 'Redundant Connection', 'Number of Connected Components in an Undirected Graph', 'Graph Valid Tree', 'Word Ladder'] },
   { id: 't12', title: 'Advanced Graphs', questions: ['Min Cost to Connect All Points', 'Network Delay Time', 'Cheapest Flights Within K Stops', 'Swim in Rising Water', 'Alien Dictionary', 'Reconstruct Itinerary'] },
   { id: 't13', title: '1-D Dynamic Programming', questions: ['Climbing Stairs', 'Min Cost Climbing Stairs', 'House Robber', 'House Robber II', 'Longest Palindromic Substring', 'Palindromic Substrings', 'Decode Ways', 'Coin Change', 'Maximum Product Subarray', 'Word Break', 'Longest Increasing Subsequence', 'Partition Equal Subset Sum'] },
-  { id: 't14', title: '2-D Dynamic Programming', questions: ['Unique Paths', 'Longest Common Subsequence', 'Best Time to Buy and Sell Stock with Cooldown', 'Coin Change II', 'Target Sum', 'Interleaving String', 'Edit Distance', 'Burst Balloons', 'Distinct Subsequences', 'Regular Expression Matching'] },
+  { id: 't14', title: '2-D Dynamic Programming', questions: ['Unique Paths', 'Longest Common Subsequence', 'Best Time to Buy and Sell Stock with Cooldown', 'Coin Change II', 'Target Sum', 'Interleaving String', 'Edit Distance', 'Burst Balloons', 'Distinct Subsequences', 'Regular Expression Matching', "Longest Increasing Path In Matrix"] },
   { id: 't15', title: 'Greedy', questions: ['Maximum Subarray', 'Jump Game', 'Jump Game II', 'Gas Station', 'Hand of Straights', 'Merge Triplets to Form Target Triplet', 'Partition Labels', 'Valid Parenthesis String'] },
   { id: 't16', title: 'Intervals', questions: ['Insert Interval', 'Merge Intervals', 'Non-overlapping Intervals', 'Meeting Rooms', 'Meeting Rooms II', 'Minimum Interval to Include Each Query'] },
   { id: 't17', title: 'Bit Manipulation', questions: ['Single Number', 'Number of 1 Bits', 'Counting Bits', 'Reverse Bits', 'Missing Number', 'Sum of Two Integers', 'Reverse Integer'] },
@@ -358,6 +358,7 @@ export default function Dashboard() {
 'Missing Number': 'missing-number',
 'Sum of Two Integers': 'sum-of-two-integers',
 'Reverse Integer': 'reverse-integer',
+'longest-increasing-path-in-matrix': 'longest-increasing-path-in-matrix', // 2-D DP question
   };
 
   // Mapping of question names to their difficulties
@@ -369,6 +370,7 @@ export default function Dashboard() {
 'Swim in Rising Water': 'Hard',
 'Alien Dictionary': 'Hard',
 'Reconstruct Itinerary': 'Hard',
+'Longest Increasing Path In Matrix': 'Hard',
 
 // 2-D Dynamic Programming
 'Unique Paths': 'Medium',
@@ -573,47 +575,103 @@ export default function Dashboard() {
     if (problemData.questionsGrade && problemData.questionsGrade.toLowerCase() === 'pass') stars = 3;
     
     return stars;
-  };
-  // Stats panel state
-  const [starsTimeFrame, setStarsTimeFrame] = useState('week');
-  const [submissionsTimeFrame, setSubmissionsTimeFrame] = useState('week');
+  };  // Stats panel state
+  const [starsTimeFrame, setStarsTimeFrame] = useState('all');
+  const [submissionsTimeFrame, setSubmissionsTimeFrame] = useState('all');
   const [showStatsPanel, setShowStatsPanel] = useState(true);
-
-  // Mock stats data
-  const mockStats = {
-    stars: {
-      week: 8,
-      month: 24,
-      year: 52,
-      all: 52
-    },
-    submissions: {
-      week: 15,
-      month: 67,
-      year: 234,
-      all: 234
-    }
-  };  // Fetch user data from Firestore
+  
+  // Real stats data
+  const [userStats, setUserStats] = useState({
+    totalProblems: 0,
+    solvedProblems: 0,
+    totalStars: 0,
+    averageStars: 0,
+    completionRate: 0,
+    currentStreak: 0,
+    unlockedTiers: 0,
+    recentActivity: []
+  });  // Fetch user data from Firestore
   useEffect(() => {
     const fetchUserData = async () => {
       if (user?.uid) {
         setLoadingStars(true);
-        try {          // Fetch total stars
+        try {
+          // Fetch total stars
           const userDoc = await getDocument('Users', user.uid);
           if (userDoc && userDoc['total-stars'] !== undefined) {
             setUserTotalStars(userDoc['total-stars']);
           }
-            // Fetch question data for all questions with Firestore mapping
+
+          // Fetch question data for all questions with Firestore mapping
           const questionStars = {};
           const allProblemData = userDoc.problemData;
           console.log('All problem data:', allProblemData);
+          
+          let totalProblems = 0;
+          let solvedProblems = 0;
+          let totalStarsEarned = 0;
+          const recentActivity = [];
           
           for (const [questionName, problemId] of Object.entries(questionToProblemId)) {
             const problemData = allProblemData?.[problemId];
             const stars = calculateStars(problemData);
             questionStars[questionName] = stars;
+            
+            totalProblems++;
+            if (stars > 0) {
+              solvedProblems++;
+              totalStarsEarned += stars;
+              
+              // Add to recent activity if solved
+              if (problemData?.solved) {
+                recentActivity.push({
+                  question: questionName,
+                  stars: stars,
+                  type: 'solved',
+                  timestamp: problemData.lastUpdated || new Date()
+                });
+              }
+            }
+            
             console.log(`${questionName} (${problemId}): ${stars} stars`, problemData);
           }
+          
+          // Calculate stats
+          const completionRate = totalProblems > 0 ? Math.round((solvedProblems / totalProblems) * 100) : 0;
+          const averageStars = solvedProblems > 0 ? (totalStarsEarned / solvedProblems).toFixed(1) : 0;
+          
+          // Calculate unlocked tiers
+          const unlockedTiers = tiers.filter(tier => userTotalStars >= tier.requiredStars).length;
+          
+          // Sort recent activity by timestamp and take last 5
+          recentActivity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+          const limitedRecentActivity = recentActivity.slice(0, 5);
+          
+          // Add tier unlock events
+          tiers.forEach(tier => {
+            if (userTotalStars >= tier.requiredStars) {
+              limitedRecentActivity.push({
+                tierTitle: tier.title,
+                type: 'tier_unlock',
+                timestamp: new Date() // We don't have actual unlock timestamps
+              });
+            }
+          });
+          
+          // Sort again and limit to 4 items
+          limitedRecentActivity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+          
+          setUserStats({
+            totalProblems,
+            solvedProblems,
+            totalStars: userTotalStars,
+            averageStars: parseFloat(averageStars),
+            completionRate,
+            currentStreak: 0, // We don't track streaks yet
+            unlockedTiers,
+            recentActivity: limitedRecentActivity.slice(0, 4)
+          });
+          
           console.log('Final questionStars:', questionStars);
           setFirestoreQuestionStars(questionStars);
         } catch (error) {
@@ -625,7 +683,7 @@ export default function Dashboard() {
     };
 
     fetchUserData();
-  }, [user?.uid, getDocument]);  // Helper function to get star count for a question
+  }, [user?.uid, getDocument]);// Helper function to get star count for a question
   const getQuestionStars = (questionName) => {
     // For questions with Firestore mapping, use real data
     if (questionToProblemId[questionName]) {
@@ -849,96 +907,76 @@ export default function Dashboard() {
                   </svg>
                 </button>
               </div>
-            
-            {/* Stars Earned */}
+
+
+            {/* Problems Progress */}
             <div className="bg-gray-900 rounded-lg p-4 mb-4 border border-gray-700">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-200">Stars Earned</h3>
-                <select 
-                  value={starsTimeFrame} 
-                  onChange={(e) => setStarsTimeFrame(e.target.value)}
-                  className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="year">This Year</option>
-                  <option value="all">All Time</option>
-                </select>
+                <h3 className="text-lg font-semibold text-gray-200">Problems Solved</h3>
               </div>
               <div className="flex items-center space-x-2">
-                <svg className="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.719c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                <svg className="w-6 h-6 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
-                <span className="text-3xl font-bold text-gray-100">{mockStats.stars[starsTimeFrame]}</span>
+                <span className="text-3xl font-bold text-gray-100">
+                  {loadingStars ? '...' : `${userStats.solvedProblems}/${userStats.totalProblems}`}
+                </span>
               </div>
-            </div>
-
-            {/* Submissions */}
-            <div className="bg-gray-900 rounded-lg p-4 mb-4 border border-gray-700">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-200">Submissions</h3>
-                <select 
-                  value={submissionsTimeFrame} 
-                  onChange={(e) => setSubmissionsTimeFrame(e.target.value)}
-                  className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="year">This Year</option>
-                  <option value="all">All Time</option>
-                </select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <svg className="w-6 h-6 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                </svg>
-                <span className="text-3xl font-bold text-gray-100">{mockStats.submissions[submissionsTimeFrame]}</span>
-              </div>
-            </div>
-
-            {/* Additional Stats */}
+            </div>            {/* Additional Stats */}
             <div className="bg-gray-900 rounded-lg p-4 mb-4 border border-gray-700">
               <h3 className="text-lg font-semibold text-gray-200 mb-3">Quick Stats</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Completion Rate</span>
-                  <span className="text-gray-200 font-medium">68%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Current Streak</span>
-                  <span className="text-gray-200 font-medium">5 days</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Avg. Stars/Problem</span>
-                  <span className="text-gray-200 font-medium">2.1</span>
+                  <span className="text-gray-200 font-medium">
+                    {loadingStars ? '...' : `${userStats.completionRate}%`}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Unlocked Tiers</span>
-                  <span className="text-gray-200 font-medium">4/8</span>
+                  <span className="text-gray-200 font-medium">
+                    {loadingStars ? '...' : `${userStats.unlockedTiers}/${tiers.length}`}
+                  </span>
                 </div>
               </div>
-            </div>
-
-            {/* Recent Activity */}
+            </div>           
             <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
               <h3 className="text-lg font-semibold text-gray-200 mb-3">Recent Activity</h3>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-sm">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-300">Solved "Two Sum" - 3★</span>
+              {loadingStars ? (
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center space-x-2 text-sm">
+                      <div className="w-2 h-2 bg-gray-600 rounded-full animate-pulse"></div>
+                      <div className="h-4 bg-gray-600 rounded animate-pulse flex-1"></div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center space-x-2 text-sm">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  <span className="text-gray-300">Attempted "3Sum" - 1★</span>
+              ) : userStats.recentActivity.length > 0 ? (
+                <div className="space-y-2">
+                  {userStats.recentActivity.map((activity, index) => (
+                    <div key={index} className="flex items-center space-x-2 text-sm">
+                      <div className={`w-2 h-2 rounded-full ${
+                        activity.type === 'solved' 
+                          ? activity.stars === 3 ? 'bg-green-500' : activity.stars === 2 ? 'bg-yellow-500' : 'bg-blue-500'
+                          : activity.type === 'tier_unlock' ? 'bg-purple-500' : 'bg-gray-500'
+                      }`}></div>
+                      <span className="text-gray-300">
+                        {activity.type === 'solved' 
+                          ? `Solved "${activity.question}" - ${activity.stars}★`
+                          : activity.type === 'tier_unlock' 
+                          ? `Unlocked ${activity.tierTitle}`
+                          : 'Unknown activity'
+                        }
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center space-x-2 text-sm">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-300">Solved "Valid Palindrome" - 3★</span>                </div>
-                <div className="flex items-center space-x-2 text-sm">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-gray-300">Unlocked Tier 3</span>
+              ) : (
+                <div className="text-gray-400 text-sm">
+                  No recent activity. Start solving problems to see your progress here!
                 </div>
-              </div>              </div>
+              )}
+            </div>
             </div>
           </div>
         )}
