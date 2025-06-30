@@ -39,6 +39,14 @@ export default function CodeEditorPanel({
     }
   };
 
+  // Reset code to original template
+  const handleResetCode = () => {
+    const defaultCode = problem.codeTemplate || `class Solution:
+    def hasDuplicate(self, nums: List[int]) -> bool:
+        `;
+    setUserCode(defaultCode);
+  };
+
   return (
     <div className="h-full flex flex-col bg-gray-800 relative">
       {/* Lock overlay */}
@@ -58,7 +66,34 @@ export default function CodeEditorPanel({
         {/* Code Editor Panel */}
         <Panel defaultSize={isPanelVisible ? 70 : 100} minSize={40}>
           <div className="h-full flex flex-col bg-gray-800 border-l border-gray-700">
-            <div className="flex-1 p-4">
+            <div className="flex-1 p-4 relative">
+              {/* Reset Button - Top Right of Editor */}
+              <button
+                onClick={handleResetCode}
+                disabled={isLocked || showExplanationModal || showQuestionsModal}
+                className={`absolute top-6 right-6 z-10 p-2 rounded-md transition-all duration-200 ${
+                  isLocked || showExplanationModal || showQuestionsModal
+                    ? 'opacity-30 cursor-not-allowed text-gray-500' 
+                    : 'text-gray-400 hover:text-yellow-400'
+                }`}
+                title="Reset code to original template"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-5 w-5" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                  />
+                </svg>
+              </button>
+              
               <div className="w-full h-full rounded-lg overflow-hidden">
                 <Editor
                   height="100%"
@@ -237,7 +272,7 @@ export default function CodeEditorPanel({
                                               {output.status.description && (
                                                 <div className="flex items-center gap-2">
                                                   <span className="text-gray-400">Status:</span>
-                                                  <span className={output.status.description === 'Accepted' ? 'text-green-400' : 'text-red-400'}>
+                                                  <span className={output.status.description === "Accepted" ? 'text-green-400' : 'text-red-400'}>
                                                     {output.status.description}
                                                   </span>
                                                 </div>
