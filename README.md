@@ -31,6 +31,25 @@ A comprehensive coding practice platform inspired by LeetCode, featuring an inte
 - **Lock Screen Protection**: Prevents access to problems requiring higher star counts
 - **Firebase Authentication**: Secure user accounts and data persistence
 
+## Screenshots
+
+### Dashboard Overview
+![Dashboard](public/images/dashboard-screenshot.png)
+
+
+### Problem Solving Interface
+![Problem Interface](public/images/problem-interface-screenshot.png)
+![Problem Interface](public/images/problem-interface-submissions.png)
+
+### AI-Powered Learning
+![AI Features](public/images/ai-features-screenshot.png)
+![AI Features](public/images/ai-features-1.png)
+
+
+### Progress Tracking
+![Progress Tracking](public/images/progress-screenshot.png)
+
+
 ## Tech Stack
 
 ### Frontend
@@ -47,48 +66,6 @@ A comprehensive coding practice platform inspired by LeetCode, featuring an inte
 - **Firebase** - Authentication and Firestore database
 - **Judge0 API** - Code execution and testing environment
 - **OpenAI API** - AI explanations, questions, and transcription
-- **Vercel** - Deployment and hosting platform
-
-### Development Tools
-- **ESLint** - Code linting and formatting
-- **Autoprefixer** - CSS vendor prefixing
-- **PostCSS** - CSS processing
-
-## Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/black-box.git
-   cd black-box
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables**
-   Create a `.env.local` file in the root directory:
-   ```env
-   # Firebase Configuration
-   NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-   NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
-
-   # OpenAI Configuration
-   OPENAI_API_KEY=your_openai_api_key
-   ```
-
-4. **Run the development server**
-   ```bash
-   npm run dev
-   ```
-
-5. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
 
 ## Usage
 
@@ -149,9 +126,4 @@ black-box/
 └── README.md
 ```
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
 
