@@ -32,22 +32,19 @@ A comprehensive coding practice platform inspired by LeetCode, featuring an inte
 - **Firebase Authentication**: Secure user accounts and data persistence
 
 ## Screenshots
-
 ### Dashboard Overview
-![Dashboard](public/images/dashboard-screenshot.png)
-
+![Dashboard Screenshot](public/images/dashboard-screenshot.png)
 
 ### Problem Solving Interface
-![Problem Interface](public/images/problem-interface-screenshot.png)
-![Problem Interface](public/images/problem-interface-submissions.png)
+![Problem Interface Screenshot](public/images/problem-interface-screenshot.png)
+![Problem Interface Submissions](public/images/problem-interface-submissions.png)
 
 ### AI-Powered Learning
-![AI Features](public/images/ai-features-screenshot.png)
+![AI Features Screenshot](public/images/ai-features-screenshot.png)
 ![AI Features](public/images/ai-features-1.png)
 
-
 ### Progress Tracking
-![Progress Tracking](public/images/progress-screenshot.png)
+![Progress Screenshot](public/images/progress-screenshot.png)
 
 
 ## Tech Stack
