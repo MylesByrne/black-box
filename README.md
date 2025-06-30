@@ -33,18 +33,18 @@ A comprehensive coding practice platform inspired by LeetCode, featuring an inte
 
 ## Screenshots
 ### Dashboard Overview
-![Dashboard Screenshot](public/images/dashboard-screenshot.png)
+![Dashboard Screenshot](public/images/dashboard-screenshot.PNG)
 
 ### Problem Solving Interface
-![Problem Interface Screenshot](public/images/problem-interface-screenshot.png)
-![Problem Interface Submissions](public/images/problem-interface-submissions.png)
+![Problem Interface Screenshot](public/images/problem-interface-screenshot.PNG)
+![Problem Interface Submissions](public/images/problem-interface-submissions.PNG)
 
 ### AI-Powered Learning
-![AI Features Screenshot](public/images/ai-features-screenshot.png)
+![AI Features Screenshot](public/images/ai-features-screenshot.PNG)
 ![AI Features](public/images/ai-features-1.png)
 
 ### Progress Tracking
-![Progress Screenshot](public/images/progress-screenshot.png)
+![Progress Screenshot](public/images/progress-screenshot.PNG)
 
 
 ## Tech Stack
