@@ -41,7 +41,7 @@ A comprehensive coding practice platform inspired by LeetCode, featuring an inte
 
 ### AI-Powered Learning
 ![AI Features Screenshot](public/images/ai-features-screenshot.PNG)
-![AI Features](public/images/ai-features-1.png)
+![AI Features](public/images/ai-features-1.PNG)
 
 ### Progress Tracking
 ![Progress Screenshot](public/images/progress-screenshot.PNG)
