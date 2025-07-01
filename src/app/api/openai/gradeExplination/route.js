@@ -24,7 +24,7 @@ export async function POST(request) {
       messages: [
         {
           role: "system",
-          content: "You are an expert code reviewer. You grade a user's explanation of their own code as PASS or FAIL based on correctness, clarity, and alignment with the actual code logic."
+          content: "You are an expert code reviewer. You grade a user's explanation of their own code as PASS or FAIL based on correctness, clarity, and alignment with the actual code logic. You should be pretty lienient with grading"
         },
         {
           role: "user",
